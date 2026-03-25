@@ -40,6 +40,7 @@ export default function App() {
   const [showPinModal, setShowPinModal] = useState(false);
 
   useEffect(() => {
+    console.log("BTTF App Version: 3.7");
     // Initial 3s loading screen
     const timer = setTimeout(() => {
       setAppState("login");

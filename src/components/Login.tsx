@@ -14,6 +14,17 @@ export function Login({ onLogin }: LoginProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(true);
   const [isGasSet, setIsGasSet] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
+  const [showSetup, setShowSetup] = useState(false);
+
+  const handleLogoClick = () => {
+    const newCount = tapCount + 1;
+    setTapCount(newCount);
+    if (newCount >= 10) {
+      setShowSetup(true);
+      setTapCount(0);
+    }
+  };
 
   React.useEffect(() => {
     const fetchUsers = async () => {
@@ -146,7 +157,7 @@ export function Login({ onLogin }: LoginProps) {
         transition={{ duration: 0.8 }}
         className="glass-card p-8 rounded-2xl w-full max-w-md neon-border relative overflow-hidden"
       >
-        {isGasSet && (
+        {isGasSet && showSetup && (
           <div className="mb-6 p-4 bg-blue-900/20 rounded-xl border border-blue-500/30">
             <p className="text-[10px] text-blue-400 mb-2 font-digital tracking-widest uppercase">Googleスプレッドシート連携：有効</p>
             <button
@@ -164,7 +175,12 @@ export function Login({ onLogin }: LoginProps) {
         <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-orange to-transparent opacity-50" />
 
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold font-digital neon-text-blue mb-4 tracking-widest">BTTF</h1>
+          <h1 
+            onClick={handleLogoClick}
+            className="text-5xl font-bold font-digital neon-text-blue mb-4 tracking-widest cursor-pointer select-none active:scale-95 transition-transform"
+          >
+            BTTF
+          </h1>
           <p className="text-gray-500 font-digital tracking-widest text-xs uppercase">管理システム</p>
         </div>
 
@@ -206,13 +222,32 @@ export function Login({ onLogin }: LoginProps) {
               <p className="text-neon-red text-[10px] font-digital text-center tracking-widest leading-relaxed">
                 {error}
               </p>
-              <div className="flex justify-center">
+            <div className="flex justify-center gap-4">
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
                   className="text-[8px] font-digital text-red-400 hover:text-red-300 underline underline-offset-4 uppercase tracking-widest"
                 >
                   [ 再試行 / RETRY ]
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if ('serviceWorker' in navigator) {
+                      const registrations = await navigator.serviceWorker.getRegistrations();
+                      for (let registration of registrations) {
+                        await registration.unregister();
+                      }
+                      const cacheNames = await caches.keys();
+                      for (let name of cacheNames) {
+                        await caches.delete(name);
+                      }
+                      window.location.reload();
+                    }
+                  }}
+                  className="text-[8px] font-digital text-red-400 hover:text-red-300 underline underline-offset-4 uppercase tracking-widest"
+                >
+                  [ 強制更新 / FORCE UPDATE ]
                 </button>
               </div>
             </motion.div>
@@ -237,7 +272,7 @@ export function Login({ onLogin }: LoginProps) {
               {isGasSet ? "SYSTEM ONLINE (GAS)" : "OFFLINE / LOCAL MODE"}
             </p>
           </div>
-          <p className="text-[6px] text-gray-500 font-digital mt-1">VER 3.6 - 20260325</p>
+          <p className="text-[6px] text-gray-500 font-digital mt-1">VER 3.7 - 20260325</p>
         </div>
       </motion.div>
     </div>

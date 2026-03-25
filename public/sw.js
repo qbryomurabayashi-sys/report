@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bttf-v1';
+const CACHE_NAME = 'bttf-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -37,6 +37,17 @@ self.addEventListener('fetch', (event) => {
   // Skip caching for API calls to ensure fresh data
   if (event.request.url.includes('/api/')) return;
 
+  // Network First strategy for the main page and index.html to ensure updates
+  if (event.request.mode === 'navigate' || event.request.url.endsWith('/') || event.request.url.endsWith('index.html')) {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match(event.request);
+      })
+    );
+    return;
+  }
+
+  // Cache First strategy for other assets
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);

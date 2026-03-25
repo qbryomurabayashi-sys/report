@@ -25,7 +25,9 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
     setError("");
     try {
       const endpoint = reportType === "weekly" ? "/api/weeklyReports" : "/api/decadeReports";
-      const response = await fetch(`${endpoint}?userId=${user.UserID}&role=${user.Role}&area=${encodeURIComponent(user.Area || "")}${refresh ? "&refresh=true" : ""}`);
+      const response = await fetch(`${endpoint}?userId=${user.UserID}&role=${user.Role}&area=${encodeURIComponent(user.Area || "")}${refresh ? "&refresh=true" : ""}`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "データの取得に失敗しました");
@@ -289,7 +291,15 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
       )}
 
       <div className="space-y-4">
-        {error && (
+        {isLoading && (
+          <div className="text-center py-20">
+            <div className="inline-block w-8 h-8 border-2 border-neon-blue border-t-transparent rounded-full animate-spin mb-4"></div>
+            <div className="text-gray-600 font-digital uppercase tracking-widest text-xs animate-pulse">
+              読み込み中... / LOADING...
+            </div>
+          </div>
+        )}
+        {error && !isLoading && (
           <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-xl text-red-400 text-xs font-digital tracking-widest text-center">
             {error}
             <button 
@@ -300,7 +310,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
             </button>
           </div>
         )}
-        {!error && filteredReports.length === 0 && (
+        {!error && !isLoading && filteredReports.length === 0 && (
           <div className="text-center py-20 text-gray-600 font-digital uppercase tracking-widest text-xs">
             まだ報告がありません
           </div>
