@@ -1,5 +1,5 @@
 # アプリの名前（自由に変えられます）
-name = "報告アプリ"
+name = "bttf-report-app"
 
 # 実行するメインのファイル
 main = "server.ts"
