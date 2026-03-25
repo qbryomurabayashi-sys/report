@@ -168,54 +168,19 @@ export function Login({ onLogin }: LoginProps) {
 
         <form onSubmit={handleLogin} className="space-y-8">
           <div className="space-y-4">
-            <label className="block text-[10px] font-digital text-gray-500 uppercase tracking-[0.2em] ml-1">
-              {isFetchingUsers ? "ユーザー情報を取得中..." : "あなたのアカウントを選択"}
-            </label>
-            
-            <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-              {users.map((u) => (
-                <button
-                  key={u.UserID}
-                  type="button"
-                  onClick={() => setSelectedUserId(u.UserID)}
-                  className={`p-4 rounded-xl border transition-all text-left relative overflow-hidden group ${
-                    selectedUserId === u.UserID
-                      ? "border-neon-blue bg-neon-blue/10 shadow-[0_0_15px_rgba(0,243,255,0.2)]"
-                      : "border-gray-800 bg-black/40 hover:border-gray-600"
-                  }`}
-                >
-                  <div className={`text-[8px] font-digital mb-1 tracking-widest uppercase ${
-                    selectedUserId === u.UserID ? "text-neon-blue" : "text-gray-500"
-                  }`}>
-                    {u.Role}
-                  </div>
-                  <div className={`text-sm font-bold tracking-widest ${
-                    selectedUserId === u.UserID ? "text-white" : "text-gray-400"
-                  }`}>
-                    {u.Name}
-                  </div>
-                  {selectedUserId === u.UserID && (
-                    <motion.div
-                      layoutId="active-glow"
-                      className="absolute inset-0 bg-gradient-to-br from-neon-blue/5 to-transparent pointer-events-none"
-                    />
-                  )}
-                </button>
-              ))}
+            <div className="space-y-2">
+              <label className="block text-[10px] font-digital text-gray-500 uppercase tracking-[0.2em] ml-1">
+                ユーザーIDを入力
+              </label>
+              <input
+                type="text"
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="w-full bg-black/50 border border-gray-800 rounded-lg p-4 focus:border-neon-blue outline-none transition-all font-digital text-neon-blue text-lg tracking-widest"
+                placeholder="ENTER USER ID"
+                required
+              />
             </div>
-
-            {!isFetchingUsers && users.length === 0 && (
-              <div className="text-center p-4 border border-dashed border-gray-800 rounded-xl">
-                <p className="text-[10px] text-gray-500 font-digital uppercase mb-2">ユーザーが見つかりません</p>
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="text-[10px] text-neon-orange font-digital uppercase tracking-widest hover:underline"
-                >
-                  再読み込み
-                </button>
-              </div>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -270,7 +235,7 @@ export function Login({ onLogin }: LoginProps) {
               {isGasSet ? "SYSTEM ONLINE (GAS)" : "OFFLINE / LOCAL MODE"}
             </p>
           </div>
-          <p className="text-[6px] text-gray-500 font-digital mt-1">VER 3.5 - 20260325</p>
+          <p className="text-[6px] text-gray-500 font-digital mt-1">VER 3.6 - 20260325</p>
         </div>
       </motion.div>
     </div>

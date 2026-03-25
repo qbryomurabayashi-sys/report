@@ -117,6 +117,7 @@ app.post('/api/addComment', async (c) => {
 app.post('/api/saveComment', async (c) => {
   const gasUrl = c.env.GAS_URL;
   const body = await c.req.json();
+  // body should contain { reportId, role, comment, userId, type }
   const data = await callGas(gasUrl, "saveComment", body);
   return c.json(data || { success: false });
 });
@@ -130,7 +131,7 @@ app.get('/api/debug', (c) => {
     gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
     usingFallback: !envGasUrl,
     environment: "Cloudflare Pages (Advanced Mode)",
-    build: "VER 3.5",
+    build: "VER 3.6",
     timestamp: new Date().toISOString()
   });
 });

@@ -95,48 +95,48 @@ export function WeeklyForm({ user, onBack }: WeeklyFormProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Info size={14} className="text-neon-orange" />
-              <h3 className="text-[10px] font-digital text-neon-orange uppercase tracking-[0.2em]">前回の振り返りとアドバイス</h3>
+              <h3 className="text-[10px] font-digital text-neon-orange uppercase tracking-[0.2em]">前回の報告内容</h3>
             </div>
             <span className="text-[8px] font-digital text-gray-600">{new Date(lastReport.TargetDate).toLocaleDateString()} の報告</span>
           </div>
           
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-1 gap-4">
               <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">前回の目標</label>
-                <p className="text-xs text-gray-300 line-clamp-3">{lastReport.Goal || "なし"}</p>
+                <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">目標</label>
+                <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.Goal || "なし"}</p>
               </div>
               <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">前回のアクションプラン</label>
-                <p className="text-xs text-gray-300 line-clamp-3">{lastReport.NextActionDetail || "なし"}</p>
+                <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">結果</label>
+                <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.Result || "なし"}</p>
               </div>
-            </div>
-
-            {(lastReport.AM_Comment || lastReport.BM_Comment) && (
-              <div className="bg-black/40 p-4 rounded-xl border border-white/5">
-                <div className="flex items-start gap-3">
-                  <MessageSquare size={14} className="text-neon-blue mt-1" />
-                  <div className="space-y-2 w-full">
-                    {lastReport.AM_Comment && (
-                      <div className="text-xs text-gray-400 italic">
-                        <span className="text-neon-blue font-bold not-italic mr-2">
-                          AM:
-                        </span>
-                        {lastReport.AM_Comment}
-                      </div>
-                    )}
-                    {lastReport.BM_Comment && (
-                      <div className="text-xs text-gray-400 italic">
-                        <span className="text-neon-orange font-bold not-italic mr-2">
-                          BM:
-                        </span>
-                        {lastReport.BM_Comment}
-                      </div>
-                    )}
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                  <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">良かった点・成果</label>
+                  <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.ReviewPlus || "なし"}</p>
+                </div>
+                <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                  <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">課題と気づき</label>
+                  <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.ReviewMinus || "なし"}</p>
                 </div>
               </div>
-            )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                  <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">次週の目的</label>
+                  <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.NextActionPurpose || "なし"}</p>
+                </div>
+                <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                  <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">具体的な行動</label>
+                  <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.NextActionDetail || "なし"}</p>
+                </div>
+              </div>
+              {lastReport.Consultation && (
+                <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                  <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">相談・共有事項</label>
+                  <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.Consultation}</p>
+                </div>
+              )}
+            </div>
           </div>
         </motion.div>
       ) : (

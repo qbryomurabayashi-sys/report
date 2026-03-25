@@ -89,9 +89,21 @@ export function DecadeForm({ user, onBack }: DecadeFormProps) {
             </div>
             <span className="text-[8px] font-digital text-gray-600">{lastReport.TargetDecade} の報告</span>
           </div>
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-            <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">前回の「1つの実験」</label>
-            <p className="text-xs text-gray-300 line-clamp-3">{lastReport.SelfReflection || "なし"}</p>
+          <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">エリアファクト</label>
+                <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.AreaFact || "なし"}</p>
+              </div>
+              <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">コーチング記録</label>
+                <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.CoachingRecord || "なし"}</p>
+              </div>
+              <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">1つの実験（振り返り）</label>
+                <p className="text-xs text-gray-300 whitespace-pre-wrap">{lastReport.SelfReflection || "なし"}</p>
+              </div>
+            </div>
           </div>
         </motion.div>
       ) : (

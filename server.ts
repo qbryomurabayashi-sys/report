@@ -55,7 +55,36 @@ function notifyUsers(userIds: string[], payload: any) {
 const DATA_FILE = path.join(process.cwd(), "db.json");
 
 // Helper to interact with GAS
-async function callGas(action: string, payload: any = {}) {
+const gasCache: Record<string, { data: any, timestamp: number }> = {};
+const CACHE_TTL = 15000; // 15 seconds cache
+
+function invalidateGasCache(actionPrefix?: string) {
+  if (!actionPrefix) {
+    Object.keys(gasCache).forEach(key => delete gasCache[key]);
+    console.log("GAS Cache fully invalidated");
+  } else {
+    let count = 0;
+    Object.keys(gasCache).forEach(key => {
+      if (key.includes(actionPrefix)) {
+        delete gasCache[key];
+        count++;
+      }
+    });
+    console.log(`GAS Cache invalidated for prefix ${actionPrefix} (${count} items)`);
+  }
+}
+
+async function callGas(action: string, payload: any = {}, useCache = false) {
+  const cacheKey = JSON.stringify({ action, ...payload });
+  
+  if (useCache && gasCache[cacheKey]) {
+    const cached = gasCache[cacheKey];
+    if (Date.now() - cached.timestamp < CACHE_TTL) {
+      console.log(`Returning cached GAS data for ${action}`);
+      return cached.data;
+    }
+  }
+
   if (!GAS_URL || GAS_URL.includes("TODO")) {
     console.log(`GAS_URL is not configured for action: ${action}`);
     return null;
@@ -82,6 +111,8 @@ async function callGas(action: string, payload: any = {}) {
         const json = JSON.parse(text);
         if (json.error) {
           console.error(`GAS returned application error for ${action}:`, json.error);
+        } else if (useCache) {
+          gasCache[cacheKey] = { data: json, timestamp: Date.now() };
         }
         return json;
       } catch (parseError) {
@@ -257,7 +288,7 @@ app.post("/api/updatePin", async (req, res) => {
 app.get("/api/weeklyReports", async (req, res) => {
   const { userId, role, area } = req.query;
   console.log(`Fetching weekly reports for UserID: ${userId}, Role: ${role}`);
-  const gasData = await callGas("getWeeklyReports", { userId, role, area });
+  const gasData = await callGas("getWeeklyReports", { userId, role, area }, true);
   if (gasData) {
     console.log(`Fetched ${gasData.length} weekly reports from GAS`);
     return res.json(gasData);
@@ -305,7 +336,7 @@ app.get("/api/weeklyReports", async (req, res) => {
 app.get("/api/decadeReports", async (req, res) => {
   const { userId, role, area } = req.query;
   console.log(`Fetching decade reports for UserID: ${userId}, Role: ${role}`);
-  const gasData = await callGas("getDecadeReports", { userId, role, area });
+  const gasData = await callGas("getDecadeReports", { userId, role, area }, true);
   if (gasData) {
     console.log(`Fetched ${gasData.length} decade reports from GAS`);
     return res.json(gasData);
@@ -349,7 +380,10 @@ app.post("/api/toggleLike", async (req, res) => {
   const { reportId, userId } = req.body;
   console.log(`Toggle like for ReportID: ${reportId}, UserID: ${userId}`);
   const gasData = await callGas("toggleLike", { reportId, userId });
-  if (gasData) return res.json(gasData);
+  if (gasData) {
+    invalidateGasCache("Reports"); // Invalidate report caches
+    return res.json(gasData);
+  }
 
   const data = getData();
   if (!data.likes) data.likes = [];
@@ -371,7 +405,10 @@ app.post("/api/toggleLike", async (req, res) => {
 app.post("/api/addComment", async (req, res) => {
   const { reportId, userId, role, text } = req.body;
   const gasData = await callGas("addComment", { reportId, userId, role, text });
-  if (gasData) return res.json(gasData);
+  if (gasData) {
+    invalidateGasCache("Reports");
+    return res.json(gasData);
+  }
 
   const data = getData();
   if (!data.comments) data.comments = [];
@@ -404,7 +441,10 @@ app.post("/api/addComment", async (req, res) => {
 
 app.post("/api/saveWeeklyReport", async (req, res) => {
   const gasData = await callGas("saveWeeklyReport", req.body);
-  if (gasData) return res.json(gasData);
+  if (gasData) {
+    invalidateGasCache("Reports");
+    return res.json(gasData);
+  }
 
   const data = getData();
   const newReport = {
@@ -438,7 +478,10 @@ app.post("/api/saveWeeklyReport", async (req, res) => {
 
 app.post("/api/saveDecadeReport", async (req, res) => {
   const gasData = await callGas("saveDecadeReport", req.body);
-  if (gasData) return res.json(gasData);
+  if (gasData) {
+    invalidateGasCache("Reports");
+    return res.json(gasData);
+  }
 
   const data = getData();
   const newReport = {
@@ -473,7 +516,10 @@ app.post("/api/saveDecadeReport", async (req, res) => {
 app.post("/api/saveComment", async (req, res) => {
   const { reportId, comment, role, userId } = req.body;
   const gasData = await callGas("saveComment", { reportId, comment, role, userId });
-  if (gasData) return res.json(gasData);
+  if (gasData) {
+    invalidateGasCache("Reports");
+    return res.json(gasData);
+  }
 
   const data = getData();
   const reportIndex = data.weeklyReports.findIndex((r: any) => String(r.ReportID) === String(reportId));

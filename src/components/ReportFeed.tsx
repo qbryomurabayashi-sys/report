@@ -16,6 +16,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
   const [reports, setReports] = useState<any[]>([]);
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
   const [comment, setComment] = useState("");
+  const [feedbackComment, setFeedbackComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
    const fetchReports = async () => {
@@ -50,32 +51,72 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
 
   const handleSaveComment = async () => {
     if (!selectedReport || !comment) return;
+    
+    const reportId = selectedReport.ReportID;
+    const commentText = comment;
+    
+    // Optimistic update
+    setReports(prev => prev.map(r => {
+      if (String(r.ReportID) === String(reportId)) {
+        const newComment = {
+          CommentID: "temp-" + Date.now(),
+          ReportID: reportId,
+          UserID: user.UserID,
+          UserName: user.Name,
+          Role: user.Role,
+          Text: commentText,
+          CreatedAt: new Date().toISOString()
+        };
+        return {
+          ...r,
+          Comments: [...(r.Comments || []), newComment]
+        };
+      }
+      return r;
+    }));
+    setComment("");
+
     setIsLoading(true);
     try {
       const response = await fetch("/api/addComment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reportId: selectedReport.ReportID,
+          reportId: reportId,
           userId: user.UserID,
           role: user.Role,
-          text: comment
+          text: commentText
         }),
       });
       const data = await response.json();
-      if (data.success) {
-        setComment("");
-        fetchReports();
+      if (!data.success) {
+        fetchReports(); // Rollback
       }
     } catch (err) {
       alert("保存に失敗しました");
+      fetchReports(); // Rollback
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleToggleLike = async (reportId: string) => {
-    console.log("Toggling like for ReportID:", reportId, "UserID:", user.UserID);
+    // Optimistic update
+    setReports(prev => prev.map(r => {
+      if (String(r.ReportID) === String(reportId)) {
+        const newUserLiked = !r.UserLiked;
+        return {
+          ...r,
+          UserLiked: newUserLiked,
+          LikeCount: newUserLiked ? (Number(r.LikeCount || 0) + 1) : Math.max(0, Number(r.LikeCount || 0) - 1),
+          LikerNames: newUserLiked 
+            ? [...(r.LikerNames || []), user.Name]
+            : (r.LikerNames || []).filter((name: string) => name !== user.Name)
+        };
+      }
+      return r;
+    }));
+
     try {
       const response = await fetch("/api/toggleLike", {
         method: "POST",
@@ -83,36 +124,63 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
         body: JSON.stringify({ reportId, userId: user.UserID }),
       });
       const data = await response.json();
-      console.log("Toggle like response:", data);
-      if (data.success) {
-        fetchReports();
+      if (!data.success) {
+        fetchReports(); // Rollback
       }
     } catch (err) {
       console.error("Like failed:", err);
+      fetchReports(); // Rollback
     }
   };
 
-  const handleSaveWeeklyComment = async () => {
-    if (!selectedReport || !comment) return;
+  const handleSaveFeedback = async (type: 'weekly' | 'decade' = 'weekly') => {
+    if (!selectedReport || !feedbackComment) return;
+    
+    const reportId = selectedReport.ReportID;
+    const commentText = feedbackComment;
+    const role = user.Role;
+    
+    // Optimistic update
+    setReports(prev => prev.map(r => {
+      if (String(r.ReportID) === String(reportId)) {
+        if (type === 'weekly') {
+          return {
+            ...r,
+            [role === 'AM' ? 'AM_Comment' : 'BM_Comment']: commentText,
+            [role === 'AM' ? 'AM_Comment_Name' : 'BM_Comment_Name']: user.Name
+          };
+        } else {
+          // For decade reports, feedback is just another comment in the list usually, 
+          // or it might be a specific field. Looking at server.ts, it seems saveComment 
+          // only handles weeklyReports for specific fields.
+          // But let's assume it's a comment for now if it's not weekly.
+          return r; 
+        }
+      }
+      return r;
+    }));
+    setFeedbackComment("");
+
     setIsLoading(true);
     try {
       const response = await fetch("/api/saveComment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reportId: selectedReport.ReportID,
-          comment,
-          role: user.Role,
-          userId: user.UserID
+          reportId: reportId,
+          comment: commentText,
+          role: role,
+          userId: user.UserID,
+          type
         }),
       });
       const data = await response.json();
-      if (data.success) {
-        setComment("");
-        fetchReports();
+      if (!data.success) {
+        fetchReports(); // Rollback
       }
     } catch (err) {
       alert("保存に失敗しました");
+      fetchReports(); // Rollback
     } finally {
       setIsLoading(false);
     }
@@ -243,7 +311,11 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
             >
               <div 
                 className="p-6 cursor-pointer hover:bg-white/5 transition-all"
-                onClick={() => setSelectedReport(selectedReport?.ReportID === report.ReportID ? null : report)}
+                onClick={() => {
+                  setSelectedReport(selectedReport?.ReportID === report.ReportID ? null : report);
+                  setComment("");
+                  setFeedbackComment("");
+                }}
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-3">
@@ -400,7 +472,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                               <div className="bg-neon-blue/5 p-3 rounded-xl border border-neon-blue/20">
                                 <div className="flex justify-between items-center mb-1">
                                   <span className="text-[10px] font-bold text-neon-blue">
-                                    {report.AM_Comment_Name || 'AM'}からのアドバイス
+                                    {report.AM_Comment_Name || 'AM'}
                                   </span>
                                 </div>
                                 <p className="text-xs text-gray-300">{report.AM_Comment}</p>
@@ -410,7 +482,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                               <div className="bg-neon-orange/5 p-3 rounded-xl border border-neon-orange/20">
                                 <div className="flex justify-between items-center mb-1">
                                   <span className="text-[10px] font-bold text-neon-orange">
-                                    {report.BM_Comment_Name || 'BM'}からのアドバイス
+                                    {report.BM_Comment_Name || 'BM'}
                                   </span>
                                 </div>
                                 <p className="text-xs text-gray-300">{report.BM_Comment}</p>
@@ -419,46 +491,25 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                           </div>
                         )}
 
-                        {/* Weekly Interactions */}
-                        <div className="pt-6 border-t border-white/5 space-y-6">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-4">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleToggleLike(report.ReportID);
-                                }}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${report.UserLiked ? "bg-neon-red/10 border-neon-red text-neon-red" : "border-gray-800 text-gray-500 hover:border-gray-700"}`}
-                              >
-                                <Heart size={16} className={report.UserLiked ? "fill-neon-red" : ""} />
-                                <span className="text-xs font-digital">{report.LikeCount || 0}</span>
-                              </button>
-                            </div>
-                            {report.LikerNames && report.LikerNames.length > 0 && (
-                              <p className="text-[10px] text-gray-500 font-digital ml-2">
-                                いいねした人: {report.LikerNames.join(", ")}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
                       {/* Weekly Comments (AM/BM Only) */}
                       {(user.Role === "AM" || user.Role === "BM") && (
                         <div className="pt-6 border-t border-white/5">
-                          <label className="text-[10px] text-neon-orange font-digital uppercase tracking-widest block mb-2">SBIフィードバック（改善のアドバイス） ({user.Role})</label>
+                          <label className="text-[10px] text-neon-orange font-digital uppercase tracking-widest block mb-2">
+                            {user.Name} ({user.Role}) としてフィードバックを送信
+                          </label>
                           <textarea
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
+                            value={feedbackComment}
+                            onChange={(e) => setFeedbackComment(e.target.value)}
                             className="w-full bg-black/50 border border-gray-800 rounded-lg p-4 focus:border-neon-orange outline-none transition-all h-24 text-gray-200 text-sm"
-                            placeholder="フィードバックを記入してください"
+                            placeholder="具体的なアドバイスを入力してください..."
                           />
                           <button
-                            onClick={handleSaveWeeklyComment}
-                            disabled={isLoading || !comment}
+                            onClick={() => handleSaveFeedback('weekly')}
+                            disabled={isLoading || !feedbackComment}
                             className="mt-4 w-full bg-transparent border border-neon-orange text-neon-orange py-3 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-neon-orange hover:text-black transition-all disabled:opacity-50 font-digital flex items-center justify-center gap-2 text-xs"
                           >
                             <Send size={14} />
-                            フィードバックを保存
+                            送信
                           </button>
                         </div>
                       )}
@@ -480,8 +531,47 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                           </section>
                         </div>
 
-                      {/* Decade Interactions */}
-                      <div className="pt-6 border-t border-white/5 space-y-6">
+                        {/* BM Feedback for Decade Reports */}
+                        {report.BM_Comment && (
+                          <div className="bg-neon-orange/10 p-4 rounded-2xl border border-neon-orange/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <MessageSquare size={14} className="text-neon-orange" />
+                              <span className="text-[10px] font-bold text-neon-orange uppercase tracking-widest">
+                                {report.BM_Comment_Name || 'BM'} (BM)
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-200 whitespace-pre-wrap">{report.BM_Comment}</p>
+                          </div>
+                        )}
+
+                        {/* BM Feedback Input for Decade Reports */}
+                        {user.Role === 'BM' && (
+                          <div className="bg-black/40 p-4 rounded-2xl border border-white/5 space-y-3">
+                            <label className="text-[10px] text-gray-500 uppercase tracking-widest block">
+                              {user.Name} ({user.Role}) としてフィードバックを送信
+                            </label>
+                            <textarea
+                              value={feedbackComment}
+                              onChange={(e) => setFeedbackComment(e.target.value)}
+                              className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-xs text-gray-200 focus:border-neon-orange outline-none transition-all min-h-[80px]"
+                              placeholder="フィードバックを入力..."
+                            />
+                            <button
+                              onClick={() => handleSaveFeedback('decade')}
+                              disabled={isLoading || !feedbackComment}
+                              className="mt-4 w-full bg-transparent border border-neon-orange text-neon-orange py-3 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-neon-orange hover:text-black transition-all disabled:opacity-50 font-digital flex items-center justify-center gap-2 text-xs"
+                            >
+                              <Send size={14} />
+                              送信
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Unified Interactions (Likes & Comments) - Available for all reports and all roles */}
+                    <div className="pt-6 border-t border-white/5 space-y-6">
+                      <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-4">
                           <button 
                             onClick={(e) => {
@@ -499,42 +589,41 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                             いいねした人: {report.LikerNames.join(", ")}
                           </p>
                         )}
+                      </div>
 
-                        {/* Comments List */}
-                        <div className="space-y-4">
-                          {report.Comments?.map((c: any) => (
-                            <div key={c.CommentID} className="bg-white/5 p-3 rounded-xl border border-white/5">
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="text-[10px] font-bold text-neon-blue">{c.UserName} ({c.Role})</span>
-                                <span className="text-[8px] font-digital text-gray-600">{new Date(c.CreatedAt).toLocaleString()}</span>
-                              </div>
-                              <p className="text-xs text-gray-300">{c.Text}</p>
+                      {/* Comments List */}
+                      <div className="space-y-4">
+                        {report.Comments?.map((c: any) => (
+                          <div key={c.CommentID} className="bg-white/5 p-3 rounded-xl border border-white/5">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[10px] font-bold text-neon-blue">{c.UserName} ({c.Role})</span>
+                              <span className="text-[8px] font-digital text-gray-600">{new Date(c.CreatedAt).toLocaleString()}</span>
                             </div>
-                          ))}
-                        </div>
+                            <p className="text-xs text-gray-300">{c.Text}</p>
+                          </div>
+                        ))}
+                      </div>
 
-                        {/* Add Comment */}
-                        <div className="flex gap-2">
-                          <input
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            className="flex-1 bg-black/50 border border-gray-800 rounded-lg px-4 py-2 focus:border-neon-blue outline-none transition-all text-xs text-gray-200"
-                            placeholder="コメントを追加..."
-                          />
-                          <button
-                            onClick={handleSaveComment}
-                            disabled={isLoading || !comment}
-                            className="p-2 bg-neon-blue text-black rounded-lg hover:shadow-[0_0_10px_rgba(0,243,255,0.4)] transition-all disabled:opacity-50"
-                          >
-                            <Send size={16} />
-                          </button>
-                        </div>
+                      {/* Add Comment */}
+                      <div className="flex gap-2">
+                        <input
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          className="flex-1 bg-black/50 border border-gray-800 rounded-lg px-4 py-2 focus:border-neon-blue outline-none transition-all text-xs text-gray-200"
+                          placeholder="コメントを追加..."
+                        />
+                        <button
+                          onClick={handleSaveComment}
+                          disabled={isLoading || !comment}
+                          className="p-2 bg-neon-blue text-black rounded-lg hover:shadow-[0_0_10px_rgba(0,243,255,0.4)] transition-all disabled:opacity-50"
+                        >
+                          <Send size={16} />
+                        </button>
                       </div>
                     </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
           </motion.div>
         );
       })}

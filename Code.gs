@@ -39,7 +39,7 @@ function doPost(e) {
         result = saveWeeklyReport(params);
         break;
       case 'saveComment':
-        result = saveAMBMComment(params.reportId, params.role, params.comment);
+        result = saveAMBMComment(params.reportId, params.role, params.comment, params.userId, params.type);
         break;
       case 'getDecadeReports':
         result = getDecadeReports(params.userId, params.role, params.area);
@@ -186,19 +186,32 @@ function saveWeeklyReport(data) {
   return { success: true };
 }
 
-function saveAMBMComment(reportId, role, comment) {
+function saveAMBMComment(reportId, role, comment, userId, type) {
   const ss = getSS();
   if (!ss) return { success: false, message: 'Spreadsheet not found' };
-  const sheet = ss.getSheetByName('WeeklyReports');
-  if (!sheet) return { success: false, message: 'WeeklyReports sheet not found' };
+  
+  const sheetName = type === 'decade' ? 'DecadeReports' : 'WeeklyReports';
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return { success: false, message: sheetName + ' sheet not found' };
+  
+  const users = getSheetData('Users');
+  const author = users.find(u => String(u.UserID) === String(userId));
+  const authorName = author ? author.Name : '';
+
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
   const reportIdIdx = headers.indexOf('ReportID');
   const commentIdx = headers.indexOf(role === 'AM' ? 'AM_Comment' : 'BM_Comment');
+  const nameIdx = headers.indexOf(role === 'AM' ? 'AM_Comment_Name' : 'BM_Comment_Name');
   
+  if (commentIdx === -1) return { success: false, message: 'Comment column not found in ' + sheetName };
+
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][reportIdIdx]) === String(reportId)) {
       sheet.getRange(i + 1, commentIdx + 1).setValue(comment);
+      if (nameIdx !== -1) {
+        sheet.getRange(i + 1, nameIdx + 1).setValue(authorName);
+      }
       return { success: true };
     }
   }
@@ -230,6 +243,7 @@ function getDecadeReports(userId, role, area) {
       ...r,
       UserName: user ? user.Name : '不明',
       UserArea: user ? user.Area : '',
+      BM_Comment_Name: r.BM_Comment_Name || '',
       LikeCount: likes.filter(l => String(l.ReportID) === String(r.ReportID)).length,
       UserLiked: likes.some(l => String(l.ReportID) === String(r.ReportID) && String(l.UserID) === String(userId)),
       Comments: comments.filter(c => String(c.ReportID) === String(r.ReportID)).map(c => {
@@ -290,8 +304,8 @@ function setupSheets() {
   }
   const sheets = {
     'Users': ['UserID', 'Name', 'Role', 'Area', 'PIN'],
-    'WeeklyReports': ['ReportID', 'UserID', 'TargetDate', 'SubmittedAt', 'Goal', 'Result', 'ReviewPlus', 'ReviewMinus', 'NextActionPurpose', 'NextActionDetail', 'Consultation', 'AM_Comment', 'BM_Comment'],
-    'DecadeReports': ['ReportID', 'UserID', 'TargetDecade', 'SubmittedAt', 'AreaFact', 'CoachingRecord', 'SelfReflection'],
+    'WeeklyReports': ['ReportID', 'UserID', 'TargetDate', 'SubmittedAt', 'Goal', 'Result', 'ReviewPlus', 'ReviewMinus', 'NextActionPurpose', 'NextActionDetail', 'Consultation', 'AM_Comment', 'BM_Comment', 'AM_Comment_Name', 'BM_Comment_Name'],
+    'DecadeReports': ['ReportID', 'UserID', 'TargetDecade', 'SubmittedAt', 'AreaFact', 'CoachingRecord', 'SelfReflection', 'BM_Comment', 'BM_Comment_Name'],
     'Likes': ['LikeID', 'ReportID', 'UserID', 'CreatedAt'],
     'Comments': ['CommentID', 'ReportID', 'UserID', 'Role', 'Text', 'CreatedAt']
   };
