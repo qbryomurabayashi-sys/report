@@ -23,20 +23,21 @@ export function Login({ onLogin }: LoginProps) {
       try {
         const debugRes = await fetch("/api/debug", { signal: controller.signal });
         if (!debugRes.ok) {
-          throw new Error(`APIが応答しません (Status: ${debugRes.status})。functionsフォルダが正しくデプロイされていない可能性があります。`);
+          throw new Error(`API接続失敗 (Status: ${debugRes.status})。CloudflareのFunctionsが正しくデプロイされていないか、ビルドエラーが起きています。`);
         }
         const debugData = await debugRes.json();
         setIsGasSet(debugData.gasUrlSet);
 
         if (!debugData.gasUrlSet) {
-          setError("設定エラー：Cloudflareの管理画面で GAS_URL が設定されていません。設定後、再デプロイが必要です。");
+          setError(`設定エラー：GAS_URLが未設定です。環境: ${debugData.environment}`);
           setIsFetchingUsers(false);
           return;
         }
 
         const response = await fetch("/api/users", { signal: controller.signal });
         if (!response.ok) {
-          throw new Error(`ユーザー情報の取得に失敗しました (Status: ${response.status})`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`ユーザー情報の取得に失敗しました (Status: ${response.status})。詳細: ${errorData.error || "不明なエラー"}`);
         }
         const data = await response.json();
         setUsers(data);
@@ -219,6 +220,7 @@ export function Login({ onLogin }: LoginProps) {
               {isGasSet ? "スプレッドシート接続済み" : "ローカルモード"}
             </p>
           </div>
+          <p className="text-[5px] text-gray-900 font-digital opacity-30">Build: 2026-03-25-0246</p>
         </div>
       </motion.div>
     </div>

@@ -51,12 +51,12 @@ app.post('/api/setup', async (c) => {
 });
 
 app.get('/api/users', async (c) => {
-  const gasUrl = c.env.GAS_URL;
-  const data = await callGas(gasUrl, "getUsers");
+  const envGasUrl = c.env.GAS_URL;
+  const data = await callGas(envGasUrl, "getUsers");
   if (Array.isArray(data)) return c.json(data);
   console.error("Failed to fetch users:", data);
   // Return a 500 error so the frontend knows it failed
-  return c.json({ error: "Failed to fetch users", details: data }, 500);
+  return c.json({ error: "GASからのユーザー取得に失敗しました", details: data }, 500);
 });
 
 app.post('/api/login', async (c) => {
@@ -117,6 +117,7 @@ app.get('/api/debug', (c) => {
     gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
     usingFallback: !envGasUrl,
     environment: "Cloudflare Pages (worker.ts)",
+    build: "2026-03-25-0246",
     timestamp: new Date().toISOString()
   });
 });

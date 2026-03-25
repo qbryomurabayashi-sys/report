@@ -59,17 +59,17 @@ app.get('/debug', (c) => {
     gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
     usingFallback: !envGasUrl,
     environment: "Cloudflare Pages Functions",
+    build: "2026-03-25-0246",
     timestamp: new Date().toISOString()
   });
 });
 
 app.get('/users', async (c) => {
-  const gasUrl = c.env.GAS_URL;
-  const data = await callGas(gasUrl, "getUsers");
-  // If data is an array, return it. If it's an error object, return empty array but log it.
+  const envGasUrl = c.env.GAS_URL;
+  const data = await callGas(envGasUrl, "getUsers");
   if (Array.isArray(data)) return c.json(data);
   console.error("Failed to fetch users:", data);
-  return c.json([]);
+  return c.json({ error: "GASからのユーザー取得に失敗しました", details: data }, 500);
 });
 
 app.post('/login', async (c) => {
