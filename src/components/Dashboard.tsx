@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { User, AppState } from "../App";
-import { Calendar, ChartLine, LogOut, Key, Lock, Bell, ChevronRight } from "lucide-react";
-import { differenceInSeconds, nextSunday, setHours, setMinutes, setSeconds } from "date-fns";
+import { Calendar, ChartLine, LogOut, Key, Lock, Bell, ChevronRight, Clock } from "lucide-react";
+import { differenceInSeconds, nextSunday, setHours, setMinutes, setSeconds, format, isAfter } from "date-fns";
+import { ja } from "date-fns/locale";
 
 interface DashboardProps {
   user: User;
@@ -13,11 +14,43 @@ interface DashboardProps {
 
 export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: DashboardProps) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [deadlineDate, setDeadlineDate] = useState<Date | null>(null);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date();
-      const nextDeadline = setSeconds(setMinutes(setHours(nextSunday(now), 18), 0), 0);
+      let nextDeadline: Date;
+
+      if (user.Role === "店長") {
+        const today18 = setSeconds(setMinutes(setHours(new Date(now), 18), 0), 0);
+        if (now.getDay() === 0 && now.getTime() < today18.getTime()) {
+          nextDeadline = today18;
+        } else {
+          nextDeadline = setSeconds(setMinutes(setHours(nextSunday(now), 18), 0), 0);
+        }
+      } else if (user.Role === "AM") {
+        const days = [10, 20, 30];
+        let found = false;
+        nextDeadline = now; // Fallback
+
+        for (const day of days) {
+          const d = setSeconds(setMinutes(setHours(new Date(now.getFullYear(), now.getMonth(), day), 18), 0), 0);
+          if (isAfter(d, now)) {
+            nextDeadline = d;
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          nextDeadline = setSeconds(setMinutes(setHours(new Date(now.getFullYear(), now.getMonth() + 1, 10), 18), 0), 0);
+        }
+      } else {
+        // Default fallback for other roles
+        nextDeadline = setSeconds(setMinutes(setHours(nextSunday(now), 18), 0), 0);
+      }
+
+      setDeadlineDate(nextDeadline);
       const diff = differenceInSeconds(nextDeadline, now);
 
       if (diff > 0) {
@@ -27,13 +60,15 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
           minutes: Math.floor((diff / 60) % 60),
           seconds: Math.floor(diff % 60),
         });
+      } else {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       }
     };
 
     const timer = setInterval(calculateTimeLeft, 1000);
     calculateTimeLeft();
     return () => clearInterval(timer);
-  }, []);
+  }, [user.Role]);
 
   const isDeadlineClose = timeLeft.days === 0 && timeLeft.hours < 24;
 
@@ -46,7 +81,17 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
         className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-neon-blue relative overflow-hidden"
       >
         <div className="flex justify-between items-center mb-4">
-          <span className="text-[10px] font-digital text-gray-500 uppercase tracking-[0.2em]">提出期限まであと...</span>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-digital text-gray-500 uppercase tracking-[0.2em]">提出期限まであと...</span>
+            {deadlineDate && (
+              <div className="flex items-center gap-1 mt-1">
+                <Clock size={10} className="text-neon-blue" />
+                <span className="text-[9px] font-digital text-neon-blue/80 tracking-widest">
+                  DEADLINE: {format(deadlineDate, "yyyy/MM/dd (E) HH:mm", { locale: ja })}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Bell size={12} className={isDeadlineClose ? "text-neon-red animate-pulse" : "text-gray-700"} />
             <span className={`text-[10px] font-digital uppercase tracking-[0.2em] ${isDeadlineClose ? "text-neon-red" : "text-gray-700"}`}>
@@ -62,7 +107,7 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
             { label: "分", value: timeLeft.minutes },
             { label: "秒", value: timeLeft.seconds },
           ].map((item, i) => (
-            <div key={i} className="flex-1 text-center bg-black/40 p-3 rounded-lg border border-white/5">
+            <div key={i} className="flex-1 text-center bg-black/40 p-3 rounded-lg border border-white/5 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)]">
               <div className={`text-3xl font-digital ${isDeadlineClose ? "text-neon-red" : "text-neon-orange"} drop-shadow-[0_0_8px_rgba(255,157,0,0.3)]`}>
                 {String(item.value).padStart(2, "0")}
               </div>
