@@ -1,15 +1,20 @@
-# アプリの名前（自由に変えられます）
-name = "報告アプリ"
+# アプリの名前
+name = "report"
 
-# 実行するメインのファイル
-main = "server.ts"
+# 実行するメインのファイル（新しく作った軽い部品を指定）
+main = "src/worker.ts"
 
-# 互換性のための日付（今のままでOK）
-compatibility_date = "2024-03-25"
+# 互換性のための日付
+compatibility_date = "2024-09-23"
 
-# Node.jsの機能を使えるようにする設定（重要！）
-node_compat = true
+# Node.jsの機能を使えるようにする
+compatibility_flags = [ "nodejs_compat" ]
+
+# 画面（React）を配信する設定
+[assets]
+directory = "./dist"
+binding = "ASSETS"
 
 # ここに環境変数を書きます
 [vars]
-GAS_URL = "https://script.google.com/macros/s/AKfycbyEJ7fv0MwKXxkRfuK9vLpNGs8wbfnYu6v3FhqqskU/exec"
+GAS_URL = "https://script.google.com/macros/s/AKfycbxJkVUWmqEL8ohB-TVnzrrQuzh0K3E4x9XWZFWewxH7RioQQjtDKL20qj1z8c_6fwXz/exec"

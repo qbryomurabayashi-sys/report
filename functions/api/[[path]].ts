@@ -1,0 +1,116 @@
+import { Hono } from 'hono';
+import { handle } from 'hono/cloudflare-pages';
+
+const app = new Hono();
+
+// Helper to interact with GAS
+async function callGas(gasUrl: string, action: string, payload: any = {}) {
+  if (!gasUrl) {
+    console.error("GAS_URL is missing in environment variables");
+    return { success: false, message: "GAS_URL is not configured in environment variables" };
+  }
+  
+  try {
+    console.log(`Calling GAS with action: ${action}, URL: ${gasUrl.substring(0, 30)}...`);
+    const response = await fetch(gasUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...payload }),
+      redirect: "follow"
+    });
+
+    if (!response.ok) {
+      console.error(`GAS returned error status: ${response.status}`);
+      return { success: false, message: `GAS returned status ${response.status}` };
+    }
+
+    const text = await response.text();
+    console.log(`GAS response (first 100 chars): ${text.substring(0, 100)}`);
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error("GAS returned invalid JSON:", text);
+      return { success: false, message: "GAS returned invalid JSON", raw: text.substring(0, 100) };
+    }
+  } catch (error) {
+    console.error("Fetch error while calling GAS:", error);
+    return { success: false, message: error instanceof Error ? error.message : "Fetch error" };
+  }
+}
+
+app.post('/setup', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const data = await callGas(gasUrl, "setup");
+  return c.json(data);
+});
+
+app.get('/debug', (c) => {
+  const gasUrl = c.env.GAS_URL;
+  return c.json({
+    status: "ok",
+    gasUrlSet: !!gasUrl, // Match Login.tsx expectation
+    gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
+    environment: "Cloudflare Pages Functions",
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/users', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const data = await callGas(gasUrl, "getUsers");
+  // If data is an array, return it. If it's an error object, return empty array but log it.
+  if (Array.isArray(data)) return c.json(data);
+  console.error("Failed to fetch users:", data);
+  return c.json([]);
+});
+
+app.post('/login', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "login", body);
+  return c.json(data || { success: false, message: "Connection error" });
+});
+
+app.get('/weeklyReports', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const query = c.req.query();
+  const data = await callGas(gasUrl, "getWeeklyReports", query);
+  return c.json(data || []);
+});
+
+app.get('/decadeReports', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const query = c.req.query();
+  const data = await callGas(gasUrl, "getDecadeReports", query);
+  return c.json(data || []);
+});
+
+app.post('/saveWeeklyReport', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "saveWeeklyReport", body);
+  return c.json(data || { success: false });
+});
+
+app.post('/saveDecadeReport', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "saveDecadeReport", body);
+  return c.json(data || { success: false });
+});
+
+app.post('/toggleLike', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "toggleLike", body);
+  return c.json(data || { success: false });
+});
+
+app.post('/addComment', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "addComment", body);
+  return c.json(data || { success: false });
+});
+
+export const onRequest = handle(app);

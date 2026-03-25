@@ -1,4 +1,21 @@
 // Code.gs
+// スプレッドシートをIDで指定したい場合は、以下のダブルクォーテーションの中にIDを貼り付けてください。
+// 例: const SPREADSHEET_ID = "1abc123...xyz";
+// 空のまま（""）にすると、スクリプトが紐付いているスプレッドシートを自動的に使用します。
+const SPREADSHEET_ID = "1qB4l_GwFFp0LvM7J0EsE89fhABRFn_Z2hylAx7Bdr_8";
+
+function getSS() {
+  if (SPREADSHEET_ID) {
+    try {
+      return SpreadsheetApp.openById(SPREADSHEET_ID);
+    } catch (e) {
+      console.error("Failed to open spreadsheet by ID: " + e.toString());
+      return null;
+    }
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
 function doPost(e) {
   try {
     const params = JSON.parse(e.postData.contents);
@@ -52,7 +69,7 @@ function doPost(e) {
 }
 
 function updatePin(userId, newPin) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSS();
   if (!ss) return { success: false, message: 'Spreadsheet not found' };
   const sheet = ss.getSheetByName('Users');
   if (!sheet) return { success: false, message: 'Users sheet not found' };
@@ -78,7 +95,7 @@ function doGet(e) {
 }
 
 function getSheetData(sheetName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSS();
   if (!ss) return [];
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return [];
@@ -154,7 +171,7 @@ function getWeeklyReports(userId, role, area) {
 }
 
 function saveWeeklyReport(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSS();
   if (!ss) return { success: false, message: 'Spreadsheet not found' };
   const sheet = ss.getSheetByName('WeeklyReports');
   if (!sheet) return { success: false, message: 'WeeklyReports sheet not found' };
@@ -167,7 +184,7 @@ function saveWeeklyReport(data) {
 }
 
 function saveAMBMComment(reportId, role, comment) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSS();
   if (!ss) return { success: false, message: 'Spreadsheet not found' };
   const sheet = ss.getSheetByName('WeeklyReports');
   if (!sheet) return { success: false, message: 'WeeklyReports sheet not found' };
@@ -218,7 +235,7 @@ function getDecadeReports(userId, role, area) {
 }
 
 function toggleLike(reportId, userId) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSS();
   if (!ss) return { success: false, message: 'Spreadsheet not found' };
   const sheet = ss.getSheetByName('Likes');
   if (!sheet) return { success: false, message: 'Likes sheet not found' };
@@ -239,7 +256,7 @@ function toggleLike(reportId, userId) {
 }
 
 function addComment(reportId, userId, role, text) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSS();
   if (!ss) return { success: false, message: 'Spreadsheet not found' };
   const sheet = ss.getSheetByName('Comments');
   if (!sheet) return { success: false, message: 'Comments sheet not found' };
@@ -248,7 +265,7 @@ function addComment(reportId, userId, role, text) {
 }
 
 function saveDecadeReport(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSS();
   if (!ss) return { success: false, message: 'Spreadsheet not found' };
   const sheet = ss.getSheetByName('DecadeReports');
   if (!sheet) return { success: false, message: 'DecadeReports sheet not found' };
@@ -261,9 +278,9 @@ function saveDecadeReport(data) {
 }
 
 function setupSheets() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSS();
   if (!ss) {
-    return { success: false, message: 'スプレッドシートが見つかりません。スクリプトがスプレッドシートにバインドされているか確認してください。' };
+    return { success: false, message: 'スプレッドシートが見つかりません。SPREADSHEET_IDを設定するか、スクリプトをスプレッドシートから作成してください。' };
   }
   const sheets = {
     'Users': ['UserID', 'Name', 'Role', 'Area', 'PIN'],
