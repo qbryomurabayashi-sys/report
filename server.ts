@@ -1,7 +1,7 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import path from "path";
-import fs from "fs";
+import path from "node:path";
+import fs from "node:fs";
 import fetch from "node-fetch";
 import webpush from "web-push";
 
@@ -524,4 +524,19 @@ async function startServer() {
   });
 }
 
-startServer();
+// Local development only
+if (process.env.NODE_ENV !== "production") {
+  startServer();
+}
+
+// Cloudflare Workers entry point
+export default {
+  async fetch(request: Request, env: any, ctx: any) {
+    // Set environment variables from Workers env
+    if (env.GAS_URL) process.env.GAS_URL = env.GAS_URL;
+    
+    // This is a placeholder. To run Express on Workers, 
+    // you would normally use a library like @codegenie/serverless-express.
+    return new Response("BTTF API is running on Cloudflare Workers. Please use Cloudflare Pages for the full React app.");
+  },
+};
