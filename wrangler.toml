@@ -12,7 +12,7 @@ compatibility_flags = [ "nodejs_compat" ]
 
 # 画面（React）を配信する設定
 [assets]
-directory = "./dist"
+directory = "dist"
 binding = "ASSETS"
 
 # ここに環境変数を書きます

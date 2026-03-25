@@ -1,7 +1,13 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
-const app = new Hono();
+type Env = {
+  Bindings: {
+    GAS_URL: string;
+  };
+};
+
+const app = new Hono<Env>();
 
 app.use('/api/*', cors());
 
@@ -116,10 +122,14 @@ app.get('/api/debug', (c) => {
     gasUrlSet: !!gasUrl,
     gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
     usingFallback: !envGasUrl,
-    environment: "Cloudflare Pages (worker.ts)",
-    build: "VER 3.1",
+    environment: "Cloudflare Workers (worker.ts)",
+    build: "VER 3.2",
     timestamp: new Date().toISOString()
   });
+});
+
+app.all('/api/*', (c) => {
+  return c.json({ error: "Route not found", path: c.req.path }, 404);
 });
 
 export default app;

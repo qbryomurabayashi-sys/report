@@ -28,12 +28,12 @@ export function Login({ onLogin }: LoginProps) {
         });
         
         const contentType = debugRes.headers.get("content-type");
-        if (!debugRes.ok) {
+        if (!debugRes.ok || !contentType?.includes("application/json")) {
+          const text = await debugRes.text().catch(() => "");
+          if (text.includes("<!DOCTYPE html>")) {
+            throw new Error("APIが未起動です（404エラー）。CloudflareのFunctionsが正しくデプロイされているか確認してください。");
+          }
           throw new Error(`API接続エラー (Status: ${debugRes.status})。CloudflareのFunctionsがデプロイされていない可能性があります。`);
-        }
-        
-        if (!contentType?.includes("application/json")) {
-          throw new Error("APIの応答が不正です（JSONではありません）。デプロイ設定を確認してください。");
         }
 
         const debugData = await debugRes.json();
@@ -41,7 +41,7 @@ export function Login({ onLogin }: LoginProps) {
         setIsGasSet(!!debugData.gasUrlSet);
 
         if (!debugData.gasUrlSet) {
-          setError(`GAS_URLが未設定です。環境: ${debugData.environment}`);
+          setError(`GAS_URLが未設定です。Cloudflareの管理画面で環境変数を設定するか、プログラムのFALLBACK_GAS_URLを確認してください。 (Env: ${debugData.environment})`);
           setIsFetchingUsers(false);
           return;
         }
@@ -209,13 +209,24 @@ export function Login({ onLogin }: LoginProps) {
           </div>
 
           {error && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-neon-red text-xs font-digital text-center tracking-widest"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-4 bg-red-900/40 border border-red-500/50 rounded-lg backdrop-blur-sm space-y-2"
             >
-              {error}
-            </motion.p>
+              <p className="text-neon-red text-[10px] font-digital text-center tracking-widest leading-relaxed">
+                {error}
+              </p>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="text-[8px] font-digital text-red-400 hover:text-red-300 underline underline-offset-4 uppercase tracking-widest"
+                >
+                  [ 再試行 / RETRY ]
+                </button>
+              </div>
+            </motion.div>
           )}
 
           <button
@@ -237,7 +248,7 @@ export function Login({ onLogin }: LoginProps) {
               {isGasSet ? "SYSTEM ONLINE (GAS)" : "OFFLINE / LOCAL MODE"}
             </p>
           </div>
-          <p className="text-[6px] text-gray-500 font-digital mt-1">VER 3.1 - 20260325</p>
+          <p className="text-[6px] text-gray-500 font-digital mt-1">VER 3.2 - 20260325</p>
         </div>
       </motion.div>
     </div>
