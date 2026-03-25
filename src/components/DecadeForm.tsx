@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
 import { User } from "../App";
-import { ChevronLeft, Send, ChartLine } from "lucide-react";
+import { ChevronLeft, Send, ChartLine, Info } from "lucide-react";
 
 interface DecadeFormProps {
   user: User;
@@ -15,7 +15,28 @@ export function DecadeForm({ user, onBack }: DecadeFormProps) {
     CoachingRecord: "",
     SelfReflection: "",
   });
+  const [lastReport, setLastReport] = useState<any>(null);
+  const [isLoadingLastReport, setIsLoadingLastReport] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  React.useEffect(() => {
+    const fetchLastReport = async () => {
+      setIsLoadingLastReport(true);
+      try {
+        const response = await fetch(`/api/decadeReports?userId=${user.UserID}&role=${user.Role}`);
+        const data = await response.json();
+        const myReports = data.filter((r: any) => String(r.UserID) === String(user.UserID));
+        if (myReports.length > 0) {
+          setLastReport(myReports[0]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch last report:", err);
+      } finally {
+        setIsLoadingLastReport(false);
+      }
+    };
+    fetchLastReport();
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +70,35 @@ export function DecadeForm({ user, onBack }: DecadeFormProps) {
           <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-digital">AM用：10日ごとの報告</p>
         </div>
       </header>
+
+      {/* Previous Decade Context */}
+      {isLoadingLastReport ? (
+        <div className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-gray-600 animate-pulse">
+          <p className="text-[10px] font-digital text-gray-500 uppercase tracking-[0.2em]">前回の履歴を取得中...</p>
+        </div>
+      ) : lastReport ? (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-neon-orange"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Info size={14} className="text-neon-orange" />
+              <h3 className="text-[10px] font-digital text-neon-orange uppercase tracking-[0.2em]">前回の振り返り</h3>
+            </div>
+            <span className="text-[8px] font-digital text-gray-600">{lastReport.TargetDecade} の報告</span>
+          </div>
+          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+            <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">前回の「1つの実験」</label>
+            <p className="text-xs text-gray-300 line-clamp-3">{lastReport.SelfReflection || "なし"}</p>
+          </div>
+        </motion.div>
+      ) : (
+        <div className="glass-card p-4 rounded-xl mb-8 border-l-4 border-gray-800 text-gray-600 text-[10px] font-digital uppercase tracking-widest">
+          前回の報告履歴はありません
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="space-y-2">

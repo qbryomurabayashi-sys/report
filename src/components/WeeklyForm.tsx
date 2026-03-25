@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { User } from "../App";
-import { ChevronLeft, Send, Info, MessageSquare } from "lucide-react";
+import { ChevronLeft, Send, Info, MessageSquare, Calendar } from "lucide-react";
 
 interface WeeklyFormProps {
   user: User;
@@ -20,14 +20,24 @@ export function WeeklyForm({ user, onBack }: WeeklyFormProps) {
     Consultation: "",
   });
   const [lastReport, setLastReport] = useState<any>(null);
+  const [isLoadingLastReport, setIsLoadingLastReport] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchLastReport = async () => {
-      const response = await fetch(`/api/weeklyReports?userId=${user.UserID}&role=${user.Role}`);
-      const data = await response.json();
-      if (data.length > 0) {
-        setLastReport(data[0]);
+      setIsLoadingLastReport(true);
+      try {
+        const response = await fetch(`/api/weeklyReports?userId=${user.UserID}&role=${user.Role}`);
+        const data = await response.json();
+        // 自分自身の最新の報告を探す
+        const myReports = data.filter((r: any) => String(r.UserID) === String(user.UserID));
+        if (myReports.length > 0) {
+          setLastReport(myReports[0]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch last report:", err);
+      } finally {
+        setIsLoadingLastReport(false);
       }
     };
     fetchLastReport();
@@ -72,41 +82,56 @@ export function WeeklyForm({ user, onBack }: WeeklyFormProps) {
       </div>
 
       {/* Previous Week Context */}
-      {lastReport && (
+      {isLoadingLastReport ? (
+        <div className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-gray-600 animate-pulse">
+          <p className="text-[10px] font-digital text-gray-500 uppercase tracking-[0.2em]">前回の履歴を取得中...</p>
+        </div>
+      ) : lastReport ? (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-neon-orange"
         >
-          <div className="flex items-center gap-2 mb-4">
-            <Info size={14} className="text-neon-orange" />
-            <h3 className="text-[10px] font-digital text-neon-orange uppercase tracking-[0.2em]">前回の振り返りとアドバイス</h3>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">前回決めたアクションプラン</label>
-              <p className="text-sm text-gray-300">{lastReport.NextActionDetail}</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Info size={14} className="text-neon-orange" />
+              <h3 className="text-[10px] font-digital text-neon-orange uppercase tracking-[0.2em]">前回の振り返りとアドバイス</h3>
             </div>
+            <span className="text-[8px] font-digital text-gray-600">{new Date(lastReport.TargetDate).toLocaleDateString()} の報告</span>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">前回の目標</label>
+                <p className="text-xs text-gray-300 line-clamp-3">{lastReport.Goal || "なし"}</p>
+              </div>
+              <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                <label className="text-[8px] text-gray-600 uppercase tracking-widest block mb-1">前回のアクションプラン</label>
+                <p className="text-xs text-gray-300 line-clamp-3">{lastReport.NextActionDetail || "なし"}</p>
+              </div>
+            </div>
+
             {(lastReport.AM_Comment || lastReport.BM_Comment) && (
               <div className="bg-black/40 p-4 rounded-xl border border-white/5">
                 <div className="flex items-start gap-3">
                   <MessageSquare size={14} className="text-neon-blue mt-1" />
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full">
                     {lastReport.AM_Comment && (
-                      <p className="text-xs text-gray-400 italic">
+                      <div className="text-xs text-gray-400 italic">
                         <span className="text-neon-blue font-bold not-italic mr-2">
-                          {lastReport.Comments?.find((c: any) => c.Role === 'AM')?.UserName || 'AM'}:
+                          AM:
                         </span>
                         {lastReport.AM_Comment}
-                      </p>
+                      </div>
                     )}
                     {lastReport.BM_Comment && (
-                      <p className="text-xs text-gray-400 italic">
-                        <span className="text-neon-blue font-bold not-italic mr-2">
-                          {lastReport.Comments?.find((c: any) => c.Role === 'BM')?.UserName || 'BM'}:
+                      <div className="text-xs text-gray-400 italic">
+                        <span className="text-neon-orange font-bold not-italic mr-2">
+                          BM:
                         </span>
                         {lastReport.BM_Comment}
-                      </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -114,18 +139,25 @@ export function WeeklyForm({ user, onBack }: WeeklyFormProps) {
             )}
           </div>
         </motion.div>
+      ) : (
+        <div className="glass-card p-4 rounded-xl mb-8 border-l-4 border-gray-800 text-gray-600 text-[10px] font-digital uppercase tracking-widest">
+          前回の報告履歴はありません
+        </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="space-y-2">
           <label className="block text-[10px] font-digital text-gray-500 uppercase tracking-[0.2em] ml-1">対象週</label>
-          <input
-            type="date"
-            value={formData.TargetDate}
-            onChange={(e) => setFormData({ ...formData, TargetDate: e.target.value })}
-            className="w-full bg-black/50 border border-gray-800 rounded-lg p-4 focus:border-neon-blue outline-none transition-all font-digital text-neon-blue"
-            required
-          />
+          <div className="relative">
+            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-neon-blue pointer-events-none" size={18} />
+            <input
+              type="date"
+              value={formData.TargetDate}
+              onChange={(e) => setFormData({ ...formData, TargetDate: e.target.value })}
+              className="w-full bg-black/50 border border-gray-800 rounded-lg py-4 pl-12 pr-4 focus:border-neon-blue outline-none transition-all font-digital text-neon-blue"
+              required
+            />
+          </div>
         </div>
 
         <div className="space-y-6">

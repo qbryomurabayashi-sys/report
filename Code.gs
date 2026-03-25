@@ -150,6 +150,9 @@ function getWeeklyReports(userId, role, area) {
     filtered = reports;
   }
 
+  // 新しい順にソート
+  filtered.sort((a, b) => new Date(b.SubmittedAt).getTime() - new Date(a.SubmittedAt).getTime());
+
   return filtered.map(r => {
     const user = users.find(u => String(u.UserID) === String(r.UserID));
     return { 
@@ -217,6 +220,9 @@ function getDecadeReports(userId, role, area) {
     // AM/BMは全AMの旬報が見れる
     filtered = reports;
   }
+
+  // 新しい順にソート
+  filtered.sort((a, b) => new Date(b.SubmittedAt).getTime() - new Date(a.SubmittedAt).getTime());
 
   return filtered.map(r => {
     const user = users.find(u => String(u.UserID) === String(r.UserID));

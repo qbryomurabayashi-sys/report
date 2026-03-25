@@ -114,6 +114,13 @@ app.post('/api/addComment', async (c) => {
   return c.json(data || { success: false });
 });
 
+app.post('/api/saveComment', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "saveComment", body);
+  return c.json(data || { success: false });
+});
+
 app.get('/api/debug', (c) => {
   const envGasUrl = c.env.GAS_URL;
   const gasUrl = envGasUrl || FALLBACK_GAS_URL;
@@ -123,7 +130,7 @@ app.get('/api/debug', (c) => {
     gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
     usingFallback: !envGasUrl,
     environment: "Cloudflare Pages (Advanced Mode)",
-    build: "VER 3.3",
+    build: "VER 3.5",
     timestamp: new Date().toISOString()
   });
 });
