@@ -1,14 +1,14 @@
-# アプリの名前（自由に変えられます）
+# アプリの名前（英数字とハイフンのみ、小文字）
 name = "bttf-report-app"
 
 # 実行するメインのファイル
 main = "server.ts"
 
-# 互換性のための日付（今のままでOK）
+# 互換性のための日付
 compatibility_date = "2024-03-25"
 
-# Node.jsの機能を使えるようにする設定（重要！）
-node_compat = true
+# Node.jsの機能を使えるようにする設定（Wrangler v4以降の書き方）
+compatibility_flags = [ "nodejs_compat" ]
 
 # ここに環境変数を書きます
 [vars]
