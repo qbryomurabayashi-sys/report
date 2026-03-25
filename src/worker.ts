@@ -5,11 +5,20 @@ const app = new Hono();
 
 app.use('/api/*', cors());
 
+// Fallback URL in case environment variable is not set in Cloudflare Pages
+const FALLBACK_GAS_URL = "https://script.google.com/macros/s/AKfycbxJkVUWmqEL8ohB-TVnzrrQuzh0K3E4x9XWZFWewxH7RioQQjtDKL20qj1z8c_6fwXz/exec";
+
 // Helper to interact with GAS
-async function callGas(gasUrl: string, action: string, payload: any = {}) {
-  if (!gasUrl) return null;
+async function callGas(envGasUrl: string | undefined, action: string, payload: any = {}) {
+  const gasUrl = envGasUrl || FALLBACK_GAS_URL;
+  
+  if (!gasUrl) {
+    console.error("GAS_URL is missing in environment variables and fallback");
+    return { success: false, message: "GAS_URL is not configured" };
+  }
   
   try {
+    console.log(`Calling GAS with action: ${action}, URL: ${gasUrl.substring(0, 30)}...`);
     const response = await fetch(gasUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -17,21 +26,37 @@ async function callGas(gasUrl: string, action: string, payload: any = {}) {
       redirect: "follow"
     });
 
+    if (!response.ok) {
+      console.error(`GAS returned error status: ${response.status}`);
+      return { success: false, message: `GAS returned status ${response.status}` };
+    }
+
     const text = await response.text();
     try {
       return JSON.parse(text);
     } catch (e) {
-      return null;
+      console.error("GAS returned invalid JSON:", text.substring(0, 100));
+      return { success: false, message: "GAS returned invalid JSON", raw: text.substring(0, 100) };
     }
   } catch (error) {
-    return null;
+    console.error("Fetch error while calling GAS:", error);
+    return { success: false, message: error instanceof Error ? error.message : "Fetch error" };
   }
 }
+
+app.post('/api/setup', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const data = await callGas(gasUrl, "setup");
+  return c.json(data);
+});
 
 app.get('/api/users', async (c) => {
   const gasUrl = c.env.GAS_URL;
   const data = await callGas(gasUrl, "getUsers");
-  return c.json(data || []);
+  if (Array.isArray(data)) return c.json(data);
+  console.error("Failed to fetch users:", data);
+  // Return a 500 error so the frontend knows it failed
+  return c.json({ error: "Failed to fetch users", details: data }, 500);
 });
 
 app.post('/api/login', async (c) => {
@@ -84,9 +109,14 @@ app.post('/api/addComment', async (c) => {
 });
 
 app.get('/api/debug', (c) => {
+  const envGasUrl = c.env.GAS_URL;
+  const gasUrl = envGasUrl || FALLBACK_GAS_URL;
   return c.json({
     status: "ok",
-    gasUrlSet: !!c.env.GAS_URL,
+    gasUrlSet: !!gasUrl,
+    gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
+    usingFallback: !envGasUrl,
+    environment: "Cloudflare Pages (worker.ts)",
     timestamp: new Date().toISOString()
   });
 });

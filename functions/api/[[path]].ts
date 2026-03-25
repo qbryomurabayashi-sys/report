@@ -3,11 +3,16 @@ import { handle } from 'hono/cloudflare-pages';
 
 const app = new Hono();
 
+// Fallback URL in case environment variable is not set in Cloudflare Pages
+const FALLBACK_GAS_URL = "https://script.google.com/macros/s/AKfycbxJkVUWmqEL8ohB-TVnzrrQuzh0K3E4x9XWZFWewxH7RioQQjtDKL20qj1z8c_6fwXz/exec";
+
 // Helper to interact with GAS
-async function callGas(gasUrl: string, action: string, payload: any = {}) {
+async function callGas(envGasUrl: string | undefined, action: string, payload: any = {}) {
+  const gasUrl = envGasUrl || FALLBACK_GAS_URL;
+  
   if (!gasUrl) {
-    console.error("GAS_URL is missing in environment variables");
-    return { success: false, message: "GAS_URL is not configured in environment variables" };
+    console.error("GAS_URL is missing in environment variables and fallback");
+    return { success: false, message: "GAS_URL is not configured" };
   }
   
   try {
@@ -45,11 +50,14 @@ app.post('/setup', async (c) => {
 });
 
 app.get('/debug', (c) => {
-  const gasUrl = c.env.GAS_URL;
+  const envGasUrl = c.env.GAS_URL;
+  const gasUrl = envGasUrl || FALLBACK_GAS_URL;
+  console.log("Debug: GAS_URL is", gasUrl ? "present" : "MISSING", envGasUrl ? "(from env)" : "(from fallback)");
   return c.json({
     status: "ok",
     gasUrlSet: !!gasUrl, // Match Login.tsx expectation
     gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
+    usingFallback: !envGasUrl,
     environment: "Cloudflare Pages Functions",
     timestamp: new Date().toISOString()
   });

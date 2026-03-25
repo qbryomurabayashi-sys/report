@@ -22,10 +22,22 @@ export function Login({ onLogin }: LoginProps) {
 
       try {
         const debugRes = await fetch("/api/debug", { signal: controller.signal });
+        if (!debugRes.ok) {
+          throw new Error(`APIが応答しません (Status: ${debugRes.status})。functionsフォルダが正しくデプロイされていない可能性があります。`);
+        }
         const debugData = await debugRes.json();
         setIsGasSet(debugData.gasUrlSet);
 
+        if (!debugData.gasUrlSet) {
+          setError("設定エラー：Cloudflareの管理画面で GAS_URL が設定されていません。設定後、再デプロイが必要です。");
+          setIsFetchingUsers(false);
+          return;
+        }
+
         const response = await fetch("/api/users", { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`ユーザー情報の取得に失敗しました (Status: ${response.status})`);
+        }
         const data = await response.json();
         setUsers(data);
       } catch (err: any) {
@@ -33,7 +45,7 @@ export function Login({ onLogin }: LoginProps) {
         if (err.name === 'AbortError') {
           setError("ユーザー情報の取得がタイムアウトしました。再試行してください。");
         } else {
-          setError("ユーザー情報の取得に失敗しました。");
+          setError(`エラー: ${err.message || "通信に失敗しました"}`);
         }
       } finally {
         clearTimeout(timeoutId);

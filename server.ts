@@ -7,7 +7,7 @@ import webpush from "web-push";
 
 const app = express();
 const PORT = 3000;
-const GAS_URL = process.env.GAS_URL || "https://script.google.com/macros/s/AKfycbzX2F_hHXz3Y21D5YNWUQXcIhWFhNt2A6iuFtOvLwGBro8KhjUY89Djlf-sZ5AK3rmu/exec";
+const GAS_URL = process.env.GAS_URL || "https://script.google.com/macros/s/AKfycbxJkVUWmqEL8ohB-TVnzrrQuzh0K3E4x9XWZFWewxH7RioQQjtDKL20qj1z8c_6fwXz/exec";
 
 if (GAS_URL) {
   console.log("GAS_URL is set. Connecting to Google Sheets...");
