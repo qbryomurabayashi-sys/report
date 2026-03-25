@@ -1,0 +1,41 @@
+{
+  "users": [
+    {
+      "UserID": "101",
+      "Name": "店長A (東京)",
+      "Role": "店長",
+      "Area": "東京",
+      "PIN": "12345678"
+    },
+    {
+      "UserID": "102",
+      "Name": "店長B (大阪)",
+      "Role": "店長",
+      "Area": "大阪",
+      "PIN": "12345678"
+    },
+    {
+      "UserID": "201",
+      "Name": "AM太郎 (東京)",
+      "Role": "AM",
+      "Area": "東京",
+      "PIN": "12345678"
+    },
+    {
+      "UserID": "202",
+      "Name": "AM次郎 (大阪)",
+      "Role": "AM",
+      "Area": "大阪",
+      "PIN": "12345678"
+    },
+    {
+      "UserID": "301",
+      "Name": "BMボス (本部)",
+      "Role": "BM",
+      "Area": "本部",
+      "PIN": "87654321"
+    }
+  ],
+  "weeklyReports": [],
+  "decadeReports": []
+}
