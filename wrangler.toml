@@ -1,0 +1,15 @@
+# アプリの名前（自由に変えられます）
+name = "報告アプリ"
+
+# 実行するメインのファイル
+main = "server.ts"
+
+# 互換性のための日付（今のままでOK）
+compatibility_date = "2024-03-25"
+
+# Node.jsの機能を使えるようにする設定（重要！）
+node_compat = true
+
+# ここに環境変数を書きます
+[vars]
+GAS_URL = "https://script.google.com/macros/s/AKfycbyEJ7fv0MwKXxkRfuK9vLpNGs8wbfnYu6v3FhqqskU/exec"

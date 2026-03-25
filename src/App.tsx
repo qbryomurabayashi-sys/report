@@ -44,16 +44,25 @@ export default function App() {
     const timer = setTimeout(() => {
       setAppState("login");
     }, 5000);
+
+    // Register Service Worker for PWA support
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(registration => {
+          console.log('SW registered: ', registration);
+        }).catch(registrationError => {
+          console.log('SW registration failed: ', registrationError);
+        });
+      });
+    }
+
     return () => clearTimeout(timer);
   }, []);
 
   const subscribeToPush = async (userId: string) => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
-        
-        // Wait for service worker to be ready
-        await navigator.serviceWorker.ready;
+        const registration = await navigator.serviceWorker.ready;
 
         const publicVapidKey = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYpPNs_Zqk";
         
