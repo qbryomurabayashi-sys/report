@@ -4,6 +4,7 @@ import { cors } from 'hono/cors';
 type Env = {
   Bindings: {
     GAS_URL: string;
+    ASSETS: { fetch: typeof fetch };
   };
 };
 
@@ -61,7 +62,6 @@ app.get('/api/users', async (c) => {
   const data = await callGas(envGasUrl, "getUsers");
   if (Array.isArray(data)) return c.json(data);
   console.error("Failed to fetch users:", data);
-  // Return a 500 error so the frontend knows it failed
   return c.json({ error: "GASからのユーザー取得に失敗しました", details: data }, 500);
 });
 
@@ -122,14 +122,19 @@ app.get('/api/debug', (c) => {
     gasUrlSet: !!gasUrl,
     gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
     usingFallback: !envGasUrl,
-    environment: "Cloudflare Workers (worker.ts)",
-    build: "VER 3.2",
+    environment: "Cloudflare Pages (Advanced Mode)",
+    build: "VER 3.3",
     timestamp: new Date().toISOString()
   });
 });
 
 app.all('/api/*', (c) => {
   return c.json({ error: "Route not found", path: c.req.path }, 404);
+});
+
+// Serve static assets for all other routes
+app.all('*', async (c) => {
+  return c.env.ASSETS.fetch(c.req.raw);
 });
 
 export default app;
