@@ -117,7 +117,7 @@ app.get('/api/debug', (c) => {
     gasUrlPreview: gasUrl ? `${gasUrl.substring(0, 20)}...` : "not set",
     usingFallback: !envGasUrl,
     environment: "Cloudflare Pages (worker.ts)",
-    build: "2026-03-25-0246",
+    build: "VER 3.1",
     timestamp: new Date().toISOString()
   });
 });

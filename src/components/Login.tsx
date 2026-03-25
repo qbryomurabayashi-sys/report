@@ -21,32 +21,49 @@ export function Login({ onLogin }: LoginProps) {
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
       try {
-        const debugRes = await fetch("/api/debug", { signal: controller.signal });
+        console.log("Fetching debug info...");
+        const debugRes = await fetch("/api/debug", { 
+          signal: controller.signal,
+          headers: { 'Cache-Control': 'no-cache' } // キャッシュを避ける
+        });
+        
+        const contentType = debugRes.headers.get("content-type");
         if (!debugRes.ok) {
-          throw new Error(`API接続失敗 (Status: ${debugRes.status})。CloudflareのFunctionsが正しくデプロイされていないか、ビルドエラーが起きています。`);
+          throw new Error(`API接続エラー (Status: ${debugRes.status})。CloudflareのFunctionsがデプロイされていない可能性があります。`);
         }
+        
+        if (!contentType?.includes("application/json")) {
+          throw new Error("APIの応答が不正です（JSONではありません）。デプロイ設定を確認してください。");
+        }
+
         const debugData = await debugRes.json();
-        setIsGasSet(debugData.gasUrlSet);
+        console.log("Debug data received:", debugData);
+        setIsGasSet(!!debugData.gasUrlSet);
 
         if (!debugData.gasUrlSet) {
-          setError(`設定エラー：GAS_URLが未設定です。環境: ${debugData.environment}`);
+          setError(`GAS_URLが未設定です。環境: ${debugData.environment}`);
           setIsFetchingUsers(false);
           return;
         }
 
+        console.log("Fetching users from GAS...");
         const response = await fetch("/api/users", { signal: controller.signal });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(`ユーザー情報の取得に失敗しました (Status: ${response.status})。詳細: ${errorData.error || "不明なエラー"}`);
+          throw new Error(`ユーザー取得失敗 (${response.status}): ${errorData.error || "GAS側のエラー"}`);
         }
         const data = await response.json();
-        setUsers(data);
-      } catch (err: any) {
-        console.error("Failed to fetch users", err);
-        if (err.name === 'AbortError') {
-          setError("ユーザー情報の取得がタイムアウトしました。再試行してください。");
+        if (Array.isArray(data) && data.length > 0) {
+          setUsers(data);
         } else {
-          setError(`エラー: ${err.message || "通信に失敗しました"}`);
+          throw new Error("ユーザーリストが空です。スプレッドシートを確認してください。");
+        }
+      } catch (err: any) {
+        console.error("Login fetch error:", err);
+        if (err.name === 'AbortError') {
+          setError("接続タイムアウト。ネットワークを確認してください。");
+        } else {
+          setError(`接続エラー: ${err.message}`);
         }
       } finally {
         clearTimeout(timeoutId);
@@ -215,12 +232,12 @@ export function Login({ onLogin }: LoginProps) {
             アクセス制限 • 関係者以外立入禁止
           </p>
           <div className="flex items-center justify-center gap-2">
-            <div className={`w-1 h-1 rounded-full ${isGasSet ? "bg-green-500 shadow-[0_0_5px_#22c55e]" : "bg-gray-700"}`} />
-            <p className="text-[6px] text-gray-800 font-digital tracking-widest uppercase">
-              {isGasSet ? "スプレッドシート接続済み" : "ローカルモード"}
+            <div className={`w-1.5 h-1.5 rounded-full ${isGasSet ? "bg-green-500 shadow-[0_0_8px_#22c55e]" : "bg-red-500 shadow-[0_0_8px_#ef4444]"}`} />
+            <p className={`text-[7px] font-digital tracking-widest uppercase ${isGasSet ? "text-green-500" : "text-red-500"}`}>
+              {isGasSet ? "SYSTEM ONLINE (GAS)" : "OFFLINE / LOCAL MODE"}
             </p>
           </div>
-          <p className="text-[5px] text-gray-900 font-digital opacity-30">Build: 2026-03-25-0246</p>
+          <p className="text-[6px] text-gray-500 font-digital mt-1">VER 3.1 - 20260325</p>
         </div>
       </motion.div>
     </div>
