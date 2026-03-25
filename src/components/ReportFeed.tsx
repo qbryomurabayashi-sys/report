@@ -18,17 +18,23 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
   const [comment, setComment] = useState("");
   const [feedbackComment, setFeedbackComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-   const fetchReports = async () => {
+   const fetchReports = async (refresh = false) => {
     setIsLoading(true);
+    setError("");
     try {
       const endpoint = reportType === "weekly" ? "/api/weeklyReports" : "/api/decadeReports";
-      const response = await fetch(`${endpoint}?userId=${user.UserID}&role=${user.Role}`);
+      const response = await fetch(`${endpoint}?userId=${user.UserID}&role=${user.Role}&area=${encodeURIComponent(user.Area || "")}${refresh ? "&refresh=true" : ""}`);
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "データの取得に失敗しました");
+      }
       console.log(`Fetched ${data.length} ${reportType} reports:`, data);
       setReports(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Fetch reports failed:", err);
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -197,7 +203,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
           <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-digital">みんなの報告を見る</p>
         </div>
         <button 
-          onClick={fetchReports}
+          onClick={() => fetchReports(true)}
           className="ml-auto p-2 glass-card rounded-lg text-gray-500 hover:text-neon-blue transition-all"
           title="更新"
         >
@@ -283,7 +289,18 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
       )}
 
       <div className="space-y-4">
-        {filteredReports.length === 0 && (
+        {error && (
+          <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-xl text-red-400 text-xs font-digital tracking-widest text-center">
+            {error}
+            <button 
+              onClick={() => fetchReports(true)}
+              className="block mx-auto mt-2 underline"
+            >
+              [ 再試行 / RETRY ]
+            </button>
+          </div>
+        )}
+        {!error && filteredReports.length === 0 && (
           <div className="text-center py-20 text-gray-600 font-digital uppercase tracking-widest text-xs">
             まだ報告がありません
           </div>
@@ -331,7 +348,9 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                     <div className="flex items-center gap-2">
                       <Calendar size={12} className="text-gray-600" />
                       <span className="text-[10px] font-digital text-gray-600">
-                        {reportType === "weekly" ? new Date(report.TargetDate).toLocaleDateString() : report.TargetDecade}
+                        {reportType === "weekly" 
+                          ? (isNaN(new Date(report.TargetDate).getTime()) ? "日付不明" : new Date(report.TargetDate).toLocaleDateString()) 
+                          : report.TargetDecade}
                       </span>
                     </div>
                     <span className={`text-[8px] font-digital uppercase tracking-widest px-2 py-0.5 rounded border ${isMine ? "border-neon-green/30 text-neon-green/70" : reportType === "weekly" ? "border-neon-blue/30 text-neon-blue/70" : "border-neon-orange/30 text-neon-orange/70"}`}>

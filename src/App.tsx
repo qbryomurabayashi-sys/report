@@ -40,10 +40,10 @@ export default function App() {
   const [showPinModal, setShowPinModal] = useState(false);
 
   useEffect(() => {
-    // Initial 5s loading screen
+    // Initial 3s loading screen
     const timer = setTimeout(() => {
       setAppState("login");
-    }, 5000);
+    }, 3000);
 
     // Register Service Worker for PWA support
     if ('serviceWorker' in navigator) {

@@ -93,9 +93,11 @@ export function Login({ onLogin }: LoginProps) {
       if (data.success) {
         onLogin(data.user);
       } else {
+        setSelectedUserId(""); // Clear ID on failure
         setError(data.message);
       }
     } catch (err: any) {
+      setSelectedUserId(""); // Clear ID on error
       if (err.name === 'AbortError') {
         setError("ログイン処理がタイムアウトしました。");
       } else {

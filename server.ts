@@ -75,6 +75,7 @@ function invalidateGasCache(actionPrefix?: string) {
 }
 
 async function callGas(action: string, payload: any = {}, useCache = false) {
+  console.log(`Calling GAS action: ${action} with payload:`, JSON.stringify(payload));
   const cacheKey = JSON.stringify({ action, ...payload });
   
   if (useCache && gasCache[cacheKey]) {
@@ -91,7 +92,7 @@ async function callGas(action: string, payload: any = {}, useCache = false) {
   }
   
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
   try {
     const response = await fetch(GAS_URL, {
@@ -126,7 +127,7 @@ async function callGas(action: string, payload: any = {}, useCache = false) {
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      console.error(`GAS Request Timeout for ${action} (10s)`);
+      console.error(`GAS Request Timeout for ${action} (15s)`);
     } else {
       console.error(`GAS Connection Error for ${action}:`, error);
     }
@@ -286,12 +287,26 @@ app.post("/api/updatePin", async (req, res) => {
 });
 
 app.get("/api/weeklyReports", async (req, res) => {
-  const { userId, role, area } = req.query;
-  console.log(`Fetching weekly reports for UserID: ${userId}, Role: ${role}`);
-  const gasData = await callGas("getWeeklyReports", { userId, role, area }, true);
+  const { userId, role, area, refresh } = req.query;
+  console.log(`Fetching weekly reports for UserID: ${userId}, Role: ${role}, Area: ${area}, Refresh: ${refresh}`);
+  
+  // Revert to userId and role only for the GAS payload to avoid potential filtering issues in the script
+  const gasData = await callGas("getWeeklyReports", { userId, role }, refresh !== "true");
+  
   if (gasData) {
-    console.log(`Fetched ${gasData.length} weekly reports from GAS`);
-    return res.json(gasData);
+    if (gasData.error) {
+      console.error(`GAS error in weeklyReports: ${gasData.error}`);
+      return res.status(400).json({ error: `GASエラー: ${gasData.error}` });
+    }
+    if (Array.isArray(gasData)) {
+      console.log(`Fetched ${gasData.length} weekly reports from GAS`);
+      return res.json(gasData);
+    }
+  }
+
+  if (GAS_URL && !GAS_URL.includes("TODO")) {
+    console.error("GAS request failed or returned invalid data for weeklyReports");
+    return res.status(503).json({ error: "Google Sheetsからのデータ取得に失敗しました。しばらく時間をおいて再試行してください。" });
   }
 
   const data = getData();
@@ -334,12 +349,26 @@ app.get("/api/weeklyReports", async (req, res) => {
 });
 
 app.get("/api/decadeReports", async (req, res) => {
-  const { userId, role, area } = req.query;
-  console.log(`Fetching decade reports for UserID: ${userId}, Role: ${role}`);
-  const gasData = await callGas("getDecadeReports", { userId, role, area }, true);
+  const { userId, role, area, refresh } = req.query;
+  console.log(`Fetching decade reports for UserID: ${userId}, Role: ${role}, Area: ${area}, Refresh: ${refresh}`);
+  
+  // Revert to userId and role only for the GAS payload
+  const gasData = await callGas("getDecadeReports", { userId, role }, refresh !== "true");
+  
   if (gasData) {
-    console.log(`Fetched ${gasData.length} decade reports from GAS`);
-    return res.json(gasData);
+    if (gasData.error) {
+      console.error(`GAS error in decadeReports: ${gasData.error}`);
+      return res.status(400).json({ error: `GASエラー: ${gasData.error}` });
+    }
+    if (Array.isArray(gasData)) {
+      console.log(`Fetched ${gasData.length} decade reports from GAS`);
+      return res.json(gasData);
+    }
+  }
+
+  if (GAS_URL && !GAS_URL.includes("TODO")) {
+    console.error("GAS request failed or returned invalid data for decadeReports");
+    return res.status(503).json({ error: "Google Sheetsからのデータ取得に失敗しました。しばらく時間をおいて再試行してください。" });
   }
 
   const data = getData();

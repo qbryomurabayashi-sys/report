@@ -36,7 +36,7 @@ export function LoadingScreen() {
       </div>
       
       <div className="mt-4 font-digital text-xs text-gray-600">
-        {timer.toFixed(2)}s / 5.00s
+        {timer.toFixed(2)}s / 3.00s
       </div>
 
       <div className="absolute inset-0 pointer-events-none opacity-10">
