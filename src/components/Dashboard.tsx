@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { User, AppState } from "../App";
-import { Calendar, ChartLine, LogOut, Key, Lock, Bell, ChevronRight, Clock } from "lucide-react";
+import { Calendar, ChartLine, Lock, Bell, ChevronRight, Clock, Menu } from "lucide-react";
 import { differenceInSeconds, nextSunday, setHours, setMinutes, setSeconds, format, isAfter } from "date-fns";
 import { ja } from "date-fns/locale";
+import { SidebarMenu } from "./SidebarMenu";
 
 interface DashboardProps {
   user: User;
@@ -15,6 +16,7 @@ interface DashboardProps {
 export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: DashboardProps) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [deadlineDate, setDeadlineDate] = useState<Date | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
@@ -74,6 +76,14 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
 
   return (
     <div className="container mx-auto px-4 pt-8 pb-24 max-w-2xl">
+      <SidebarMenu 
+        isOpen={isMenuOpen} 
+        onClose={() => setIsMenuOpen(false)} 
+        user={user} 
+        onLogout={onLogout} 
+        onOpenPinModal={onOpenPinModal} 
+      />
+      
       {/* Time Circuit Countdown */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -119,17 +129,17 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
 
       {/* User Info Header */}
       <header className="flex justify-between items-center mb-12 glass-card p-6 rounded-2xl border-l-4 border-neon-blue">
-        <div>
-          <h2 className="text-2xl font-bold neon-text-blue font-display tracking-tight">{user.Name}</h2>
-          <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1 font-digital">{user.Role} | {user.Area}</p>
-        </div>
-        <div className="flex gap-4">
-          <button onClick={onOpenPinModal} className="p-3 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all">
-            <Key size={18} />
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setIsMenuOpen(true)}
+            className="p-3 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all active:scale-90"
+          >
+            <Menu size={20} />
           </button>
-          <button onClick={onLogout} className="p-3 glass-card rounded-xl text-gray-500 hover:text-neon-red transition-all">
-            <LogOut size={18} />
-          </button>
+          <div>
+            <h2 className="text-2xl font-bold neon-text-blue font-display tracking-tight">{user.Name}</h2>
+            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1 font-digital">{user.Role} | {user.Area}</p>
+          </div>
         </div>
       </header>
 

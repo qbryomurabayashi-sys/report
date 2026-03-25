@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bttf-v2';
+const CACHE_NAME = 'bttf-v3.8';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

@@ -43,13 +43,66 @@ app.post("/api/subscribe", (req, res) => {
 
 // Helper to send notifications
 function notifyUsers(userIds: string[], payload: any) {
+  console.log(`Sending notifications to users: ${userIds.join(", ")} with payload:`, payload);
   userIds.forEach(uid => {
     const subs = subscriptions[uid] || [];
     subs.forEach(sub => {
-      webpush.sendNotification(sub, JSON.stringify(payload)).catch(err => console.error("Push error:", err));
+      webpush.sendNotification(sub, JSON.stringify(payload)).catch(err => {
+        console.error(`Push error for user ${uid}:`, err);
+        // If subscription is expired or invalid, remove it
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          subscriptions[uid] = subscriptions[uid].filter(s => s.endpoint !== sub.endpoint);
+        }
+      });
     });
   });
 }
+
+let lastDeadlineCheck = "";
+
+// Deadline Check Logic
+function checkDeadlines() {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentDay = now.getDate();
+  const currentDayOfWeek = now.getDay(); // 0 is Sunday, 6 is Saturday
+  
+  const checkKey = `${now.getFullYear()}-${now.getMonth()}-${currentDay}-${currentHour}`;
+  if (lastDeadlineCheck === checkKey) return;
+  lastDeadlineCheck = checkKey;
+
+  const data = getData();
+  if (!data.users) return;
+
+  // Check for Store Manager (店長) - Saturday 18:00 (1 day before Sunday 18:00)
+  if (currentDayOfWeek === 6 && currentHour === 18) {
+    const storeManagers = data.users
+      .filter((u: any) => u.Role === "店長")
+      .map((u: any) => String(u.UserID));
+    
+    notifyUsers(storeManagers, {
+      title: "【提出期限1日前】週報のリマインド",
+      body: "明日の18:00が週報の提出期限です。作成をお願いします。"
+    });
+  }
+
+  // Check for AM - 9th, 19th, 29th 18:00 (1 day before 10th, 20th, 30th 18:00)
+  if ([9, 19, 29].includes(currentDay) && currentHour === 18) {
+    const ams = data.users
+      .filter((u: any) => u.Role === "AM")
+      .map((u: any) => String(u.UserID));
+    
+    notifyUsers(ams, {
+      title: "【提出期限1日前】旬報のリマインド",
+      body: "明日の18:00が旬報の提出期限です。作成をお願いします。"
+    });
+  }
+}
+
+// Run deadline check every 30 minutes for better reliability
+setInterval(checkDeadlines, 30 * 60 * 1000);
+// Also run once on startup (with a small delay to let subscriptions load if they were persisted)
+setTimeout(checkDeadlines, 5000);
 
 // Mock Spreadsheet Data
 const DATA_FILE = path.join(process.cwd(), "db.json");
@@ -409,26 +462,44 @@ app.post("/api/toggleLike", async (req, res) => {
   const { reportId, userId } = req.body;
   console.log(`Toggle like for ReportID: ${reportId}, UserID: ${userId}`);
   const gasData = await callGas("toggleLike", { reportId, userId });
+  
+  let liked = false;
   if (gasData) {
     invalidateGasCache("Reports"); // Invalidate report caches
-    return res.json(gasData);
+    liked = gasData.liked;
+  } else {
+    const data = getData();
+    if (!data.likes) data.likes = [];
+    
+    const likeIndex = data.likes.findIndex((l: any) => String(l.ReportID) === String(reportId) && String(l.UserID) === String(userId));
+    if (likeIndex !== -1) {
+      data.likes.splice(likeIndex, 1);
+      saveData(data);
+      liked = false;
+    } else {
+      data.likes.push({ LikeID: Math.random().toString(36).substr(2, 9), ReportID: reportId, UserID: userId, CreatedAt: new Date().toISOString() });
+      saveData(data);
+      liked = true;
+    }
   }
 
-  const data = getData();
-  if (!data.likes) data.likes = [];
-  
-  const likeIndex = data.likes.findIndex((l: any) => String(l.ReportID) === String(reportId) && String(l.UserID) === String(userId));
-  if (likeIndex !== -1) {
-    data.likes.splice(likeIndex, 1);
-    saveData(data);
-    console.log("Local like removed");
-    return res.json({ success: true, liked: false });
-  } else {
-    data.likes.push({ LikeID: Math.random().toString(36).substr(2, 9), ReportID: reportId, UserID: userId, CreatedAt: new Date().toISOString() });
-    saveData(data);
-    console.log("Local like added");
-    return res.json({ success: true, liked: true });
+  // Send push notification if liked
+  if (liked) {
+    const data = getData();
+    const decadeReport = data.decadeReports.find((r: any) => String(r.ReportID) === String(reportId));
+    const weeklyReport = data.weeklyReports.find((r: any) => String(r.ReportID) === String(reportId));
+    const report = decadeReport || weeklyReport;
+    
+    if (report && String(report.UserID) !== String(userId)) {
+      const liker = data.users.find((u: any) => String(u.UserID) === String(userId));
+      notifyUsers([String(report.UserID)], {
+        title: "いいね！されました",
+        body: `${liker?.Name || "誰か"}があなたの報告にいいね！しました。`
+      });
+    }
   }
+
+  return res.json({ success: true, liked });
 });
 
 app.post("/api/addComment", async (req, res) => {

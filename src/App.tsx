@@ -40,7 +40,7 @@ export default function App() {
   const [showPinModal, setShowPinModal] = useState(false);
 
   useEffect(() => {
-    console.log("BTTF App Version: 3.7");
+    console.log("BTTF App Version: 3.8");
     // Initial 3s loading screen
     const timer = setTimeout(() => {
       setAppState("login");
@@ -51,8 +51,24 @@ export default function App() {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then(registration => {
           console.log('SW registered: ', registration);
+          
+          // Check for updates every hour
+          setInterval(() => {
+            registration.update();
+          }, 1000 * 60 * 60);
+
         }).catch(registrationError => {
           console.log('SW registration failed: ', registrationError);
+        });
+
+        // Automatically reload when a new Service Worker takes control
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            console.log('New version available! Auto-refreshing...');
+            window.location.reload();
+          }
         });
       });
     }
