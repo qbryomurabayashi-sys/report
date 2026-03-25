@@ -1,14 +1,14 @@
-# アプリの名前（英数字のみ）
-name = "bttf-report-app"
+# アプリの名前（自由に変えられます）
+name = "報告アプリ"
 
 # 実行するメインのファイル
 main = "server.ts"
 
-# 互換性のための日付（最新の機能を使うために新しくします）
-compatibility_date = "2024-09-23"
+# 互換性のための日付（今のままでOK）
+compatibility_date = "2024-03-25"
 
-# Node.jsの機能を使えるようにする魔法の言葉
-compatibility_flags = [ "nodejs_compat" ]
+# Node.jsの機能を使えるようにする設定（重要！）
+node_compat = true
 
 # ここに環境変数を書きます
 [vars]
