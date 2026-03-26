@@ -41,9 +41,10 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
     try {
       const res = await fetch("/api/projects");
       const data = await res.json();
-      setProjects(data);
+      setProjects(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to fetch projects", error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }

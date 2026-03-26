@@ -29,9 +29,10 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
     try {
       const res = await fetch("/api/tasks");
       const data = await res.json();
-      setTasks(data);
+      setTasks(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to fetch tasks", error);
+      setTasks([]);
     } finally {
       setLoading(false);
     }
