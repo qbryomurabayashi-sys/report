@@ -633,7 +633,8 @@ app.post("/api/saveComment", async (req, res) => {
 
 // Tasks API
 app.get("/api/tasks", async (req, res) => {
-  const gasResult = await callGas('getTasks', {}, true);
+  const { refresh } = req.query;
+  const gasResult = await callGas('getTasks', {}, refresh !== "true");
   if (gasResult && Array.isArray(gasResult)) {
     const data = getData();
     data.tasks = gasResult;
@@ -698,7 +699,8 @@ app.delete("/api/tasks/:id", async (req, res) => {
 
 // Projects API
 app.get("/api/projects", async (req, res) => {
-  const gasResult = await callGas('getProjects', {}, true);
+  const { refresh } = req.query;
+  const gasResult = await callGas('getProjects', {}, refresh !== "true");
   if (gasResult && Array.isArray(gasResult)) {
     const data = getData();
     data.projects = gasResult;

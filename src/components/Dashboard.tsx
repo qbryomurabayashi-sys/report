@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { User, AppState } from "../App";
-import { Calendar, ChartLine, Lock, Bell, ChevronRight, Clock, Menu, CheckSquare, FolderKanban, ChevronLeft as ChevronLeftIcon } from "lucide-react";
+import { Calendar, ChartLine, Lock, Bell, ChevronRight, Clock, Menu, CheckSquare, FolderKanban, ChevronLeft as ChevronLeftIcon, RefreshCw } from "lucide-react";
 import { differenceInSeconds, nextSunday, setHours, setMinutes, setSeconds, format, isAfter, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from "date-fns";
 import { ja } from "date-fns/locale";
 import { SidebarMenu } from "./SidebarMenu";
@@ -43,10 +43,41 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
   const [showTaskDetails, setShowTaskDetails] = useState(false);
   const [showProjectDetails, setShowProjectDetails] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [gasStatus, setGasStatus] = useState<{ configured: boolean, error: boolean }>({ configured: false, error: false });
+
+  const fetchData = async (refresh = false) => {
+    setIsRefreshing(true);
+    try {
+      // Check debug info
+      const debugRes = await fetch("/api/debug");
+      const debugData = await debugRes.json();
+      setGasStatus({ configured: debugData.gasUrlSet, error: false });
+
+      const tasksRes = await fetch(`/api/tasks${refresh ? "?refresh=true" : ""}`);
+      const tasksData = await tasksRes.json();
+      setTasks(Array.isArray(tasksData) ? tasksData : []);
+
+      const projectsRes = await fetch(`/api/projects${refresh ? "?refresh=true" : ""}`);
+      const projectsData = await projectsRes.json();
+      setProjects(Array.isArray(projectsData) ? projectsData : []);
+      
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+      setGasStatus(prev => ({ ...prev, error: true }));
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    fetch("/api/tasks").then(res => res.json()).then(data => setTasks(Array.isArray(data) ? data : []));
-    fetch("/api/projects").then(res => res.json()).then(data => setProjects(Array.isArray(data) ? data : []));
+    fetchData();
+    
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(() => fetchData(true), 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -305,6 +336,21 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
             <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1 font-digital">{user.Role} | {user.Area}</p>
           </div>
         </div>
+        <div className="flex flex-col items-end gap-1">
+          <button 
+            onClick={() => fetchData(true)}
+            disabled={isRefreshing}
+            className={`p-2 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all active:scale-90 ${isRefreshing ? "animate-spin text-neon-blue" : ""}`}
+            title="最新の情報に更新"
+          >
+            <RefreshCw size={16} />
+          </button>
+          {lastUpdated && (
+            <span className="text-[8px] text-gray-700 font-digital uppercase">
+              {format(lastUpdated, "HH:mm:ss")} UPDATED
+            </span>
+          )}
+        </div>
       </header>
 
       {/* Progress Summary */}
@@ -521,10 +567,16 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
           <ChevronRight size={20} className="text-gray-700 group-hover:text-neon-blue transition-all" />
         </motion.button>
 
-        <div className="pt-12 text-center">
+        <div className="pt-12 text-center space-y-2">
           <p className="text-[8px] text-gray-800 font-digital tracking-[0.4em] uppercase">
             BTTF Management System v2.5 • Temporal Protocol Active
           </p>
+          <div className="flex justify-center items-center gap-2">
+            <div className={`w-1 h-1 rounded-full ${gasStatus.error ? "bg-neon-red animate-pulse" : gasStatus.configured ? "bg-neon-blue" : "bg-gray-800"}`} />
+            <span className="text-[6px] text-gray-800 font-digital uppercase tracking-widest">
+              GAS LINK: {gasStatus.error ? "ERROR" : gasStatus.configured ? "STABLE" : "OFFLINE"}
+            </span>
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { User } from "../App";
-import { ChevronLeft, Plus, Trash2, CheckCircle, Circle, Calendar as CalendarIcon, User as UserIcon } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, CheckCircle, Circle, Calendar as CalendarIcon, User as UserIcon, RefreshCw } from "lucide-react";
 
 interface Task {
   TaskID: string;
@@ -25,9 +25,10 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
     fetchTasks();
   }, []);
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (refresh = false) => {
+    setLoading(true);
     try {
-      const res = await fetch("/api/tasks");
+      const res = await fetch(`/api/tasks${refresh ? "?refresh=true" : ""}`);
       const data = await res.json();
       if (data && data.error) {
         console.error("GAS error for getTasks:", data.error);
@@ -98,10 +99,18 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
         <button onClick={onBack} className="p-2 glass-card rounded-full hover:text-neon-blue transition-colors">
           <ChevronLeft size={24} />
         </button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold neon-text-blue font-display tracking-tight">タスク管理</h1>
           <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">Task Management</p>
         </div>
+        <button 
+          onClick={() => fetchTasks(true)}
+          disabled={loading}
+          className={`p-2 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all active:scale-90 ${loading ? "animate-spin text-neon-blue" : ""}`}
+          title="最新の情報に更新"
+        >
+          <RefreshCw size={20} />
+        </button>
       </header>
 
       {/* Add Task Form */}

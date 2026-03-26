@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { User } from "../App";
-import { ChevronLeft, Plus, Trash2, CheckCircle, Circle, Calendar as CalendarIcon, User as UserIcon, Users, Target, FileText } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, CheckCircle, Circle, Calendar as CalendarIcon, User as UserIcon, Users, Target, FileText, RefreshCw } from "lucide-react";
 
 interface Project {
   ProjectID: string;
@@ -37,9 +37,10 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
     fetchProjects();
   }, []);
 
-  const fetchProjects = async () => {
+  const fetchProjects = async (refresh = false) => {
+    setLoading(true);
     try {
-      const res = await fetch("/api/projects");
+      const res = await fetch(`/api/projects${refresh ? "?refresh=true" : ""}`);
       const data = await res.json();
       if (data && data.error) {
         console.error("GAS error for getProjects:", data.error);
@@ -122,10 +123,18 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
         <button onClick={onBack} className="p-2 glass-card rounded-full hover:text-neon-orange transition-colors">
           <ChevronLeft size={24} />
         </button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-neon-orange font-display tracking-tight">プロジェクト管理</h1>
           <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">Project Management</p>
         </div>
+        <button 
+          onClick={() => fetchProjects(true)}
+          disabled={loading}
+          className={`p-2 glass-card rounded-xl text-gray-500 hover:text-neon-orange transition-all active:scale-90 ${loading ? "animate-spin text-neon-orange" : ""}`}
+          title="最新の情報に更新"
+        >
+          <RefreshCw size={20} />
+        </button>
       </header>
 
       {/* Add Project Form */}
