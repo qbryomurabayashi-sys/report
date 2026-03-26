@@ -72,6 +72,18 @@ app.post('/api/login', async (c) => {
   return c.json(data || { success: false, message: "Connection error" });
 });
 
+app.post('/api/updatePin', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "updatePin", body);
+  return c.json(data || { success: false });
+});
+
+app.post('/api/subscribe', async (c) => {
+  // Just return success for now as we don't have a DB in the worker for subscriptions
+  return c.json({ success: true }, 201);
+});
+
 app.get('/api/weeklyReports', async (c) => {
   const gasUrl = c.env.GAS_URL;
   const query = c.req.query();
@@ -122,6 +134,78 @@ app.post('/api/saveComment', async (c) => {
   return c.json(data || { success: false });
 });
 
+// Tasks API
+app.get('/api/tasks', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const query = c.req.query();
+  const data = await callGas(gasUrl, "getTasks", query);
+  return c.json(data || []);
+});
+
+app.get('/api/tasks/', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const query = c.req.query();
+  const data = await callGas(gasUrl, "getTasks", query);
+  return c.json(data || []);
+});
+
+app.post('/api/tasks', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "saveTask", body);
+  return c.json(data || { success: false });
+});
+
+app.post('/api/tasks/', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "saveTask", body);
+  return c.json(data || { success: false });
+});
+
+app.delete('/api/tasks/:id', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const taskId = c.req.param('id');
+  const data = await callGas(gasUrl, "deleteTask", { taskId });
+  return c.json(data || { success: false });
+});
+
+// Projects API
+app.get('/api/projects', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const query = c.req.query();
+  const data = await callGas(gasUrl, "getProjects", query);
+  return c.json(data || []);
+});
+
+app.get('/api/projects/', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const query = c.req.query();
+  const data = await callGas(gasUrl, "getProjects", query);
+  return c.json(data || []);
+});
+
+app.post('/api/projects', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "saveProject", body);
+  return c.json(data || { success: false });
+});
+
+app.post('/api/projects/', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "saveProject", body);
+  return c.json(data || { success: false });
+});
+
+app.delete('/api/projects/:id', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const projectId = c.req.param('id');
+  const data = await callGas(gasUrl, "deleteProject", { projectId });
+  return c.json(data || { success: false });
+});
+
 app.get('/api/debug', (c) => {
   const envGasUrl = c.env.GAS_URL;
   const gasUrl = envGasUrl || FALLBACK_GAS_URL;
@@ -137,7 +221,19 @@ app.get('/api/debug', (c) => {
 });
 
 app.all('/api/*', (c) => {
-  return c.json({ error: "Route not found", path: c.req.path }, 404);
+  console.log(`[404] ${c.req.method} ${c.req.path}`);
+  return c.json({ 
+    error: "Route not found", 
+    method: c.req.method, 
+    path: c.req.path,
+    availableRoutes: [
+      "GET /api/users", "POST /api/login", "POST /api/updatePin", "POST /api/subscribe",
+      "GET /api/weeklyReports", "GET /api/decadeReports", "POST /api/saveWeeklyReport",
+      "POST /api/saveDecadeReport", "POST /api/toggleLike", "POST /api/addComment",
+      "POST /api/saveComment", "GET /api/tasks", "POST /api/tasks", "DELETE /api/tasks/:id",
+      "GET /api/projects", "POST /api/projects", "DELETE /api/projects/:id", "GET /api/debug"
+    ]
+  }, 404);
 });
 
 // Serve static assets for all other routes
