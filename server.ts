@@ -635,6 +635,9 @@ app.post("/api/saveComment", async (req, res) => {
 app.get("/api/tasks", async (req, res) => {
   const gasResult = await callGas('getTasks', {}, true);
   if (gasResult && Array.isArray(gasResult)) {
+    const data = getData();
+    data.tasks = gasResult;
+    saveData(data);
     return res.json(gasResult);
   }
   if (gasResult && gasResult.error) {
@@ -645,12 +648,10 @@ app.get("/api/tasks", async (req, res) => {
 
 app.post("/api/tasks", async (req, res) => {
   const gasResult = await callGas('saveTask', req.body, false);
-  if (gasResult && !gasResult.error) {
+  if (gasResult && !gasResult.error && gasResult.success !== false) {
     invalidateGasCache('getTasks');
-    return res.json(gasResult);
-  }
-  if (gasResult && gasResult.error) {
-    console.error("GAS error for saveTask:", gasResult.error);
+  } else if (gasResult && (gasResult.error || gasResult.success === false)) {
+    console.error("GAS error for saveTask:", gasResult.error || gasResult.message);
   }
 
   const data = getData();
@@ -666,7 +667,7 @@ app.post("/api/tasks", async (req, res) => {
     }
   } else {
     data.tasks.push({
-      TaskID: "T" + Date.now(),
+      TaskID: (gasResult && gasResult.taskId) ? gasResult.taskId : "T" + Date.now(),
       Assignee: req.body.assignee || '',
       Deadline: req.body.deadline || '',
       Content: req.body.content || '',
@@ -676,17 +677,15 @@ app.post("/api/tasks", async (req, res) => {
     });
   }
   saveData(data);
-  res.json({ success: true });
+  res.json({ success: true, taskId: gasResult?.taskId });
 });
 
 app.delete("/api/tasks/:id", async (req, res) => {
   const gasResult = await callGas('deleteTask', { taskId: req.params.id }, false);
-  if (gasResult && !gasResult.error) {
+  if (gasResult && !gasResult.error && gasResult.success !== false) {
     invalidateGasCache('getTasks');
-    return res.json(gasResult);
-  }
-  if (gasResult && gasResult.error) {
-    console.error("GAS error for deleteTask:", gasResult.error);
+  } else if (gasResult && (gasResult.error || gasResult.success === false)) {
+    console.error("GAS error for deleteTask:", gasResult.error || gasResult.message);
   }
 
   const data = getData();
@@ -701,6 +700,9 @@ app.delete("/api/tasks/:id", async (req, res) => {
 app.get("/api/projects", async (req, res) => {
   const gasResult = await callGas('getProjects', {}, true);
   if (gasResult && Array.isArray(gasResult)) {
+    const data = getData();
+    data.projects = gasResult;
+    saveData(data);
     return res.json(gasResult);
   }
   if (gasResult && gasResult.error) {
@@ -711,12 +713,10 @@ app.get("/api/projects", async (req, res) => {
 
 app.post("/api/projects", async (req, res) => {
   const gasResult = await callGas('saveProject', req.body, false);
-  if (gasResult && !gasResult.error) {
+  if (gasResult && !gasResult.error && gasResult.success !== false) {
     invalidateGasCache('getProjects');
-    return res.json(gasResult);
-  }
-  if (gasResult && gasResult.error) {
-    console.error("GAS error for saveProject:", gasResult.error);
+  } else if (gasResult && (gasResult.error || gasResult.success === false)) {
+    console.error("GAS error for saveProject:", gasResult.error || gasResult.message);
   }
 
   const data = getData();
@@ -736,7 +736,7 @@ app.post("/api/projects", async (req, res) => {
     }
   } else {
     data.projects.push({
-      ProjectID: "P" + Date.now(),
+      ProjectID: (gasResult && gasResult.projectId) ? gasResult.projectId : "P" + Date.now(),
       Assignee: req.body.assignee || '',
       WithWhom: req.body.withWhom || '',
       StartDate: req.body.startDate || '',
@@ -749,17 +749,15 @@ app.post("/api/projects", async (req, res) => {
     });
   }
   saveData(data);
-  res.json({ success: true });
+  res.json({ success: true, projectId: gasResult?.projectId });
 });
 
 app.delete("/api/projects/:id", async (req, res) => {
   const gasResult = await callGas('deleteProject', { projectId: req.params.id }, false);
-  if (gasResult && !gasResult.error) {
+  if (gasResult && !gasResult.error && gasResult.success !== false) {
     invalidateGasCache('getProjects');
-    return res.json(gasResult);
-  }
-  if (gasResult && gasResult.error) {
-    console.error("GAS error for deleteProject:", gasResult.error);
+  } else if (gasResult && (gasResult.error || gasResult.success === false)) {
+    console.error("GAS error for deleteProject:", gasResult.error || gasResult.message);
   }
 
   const data = getData();

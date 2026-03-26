@@ -125,12 +125,11 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
             <div key={`empty-${i}`} className="p-2" />
           ))}
           {days.map(day => {
-            const dayTasks = tasks.filter(t => t.Deadline === format(day, "yyyy-MM-dd") && t.Status !== 'completed');
+            const dayStr = format(day, "yyyy-MM-dd");
+            const dayTasks = tasks.filter(t => t.Deadline === dayStr && t.Status !== 'completed');
             const dayProjects = projects.filter(p => {
               if (p.Status === 'completed') return false;
-              const start = new Date(p.StartDate);
-              const end = new Date(p.EndDate);
-              return day >= start && day <= end;
+              return dayStr >= p.StartDate && dayStr <= p.EndDate;
             });
             const hasEvents = dayTasks.length > 0 || dayProjects.length > 0;
             const isToday = isSameDay(day, today);
