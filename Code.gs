@@ -481,20 +481,11 @@ function setupSheets() {
       isNew = true;
     }
 
-    // デモデータの追加
+    // デモデータの追加は削除しました
     if (sheet.getLastRow() <= 1) {
       if (name === 'Users') {
-        const demoUsers = [
-          ['101', '店長A', '店長', '東京', '12345678'],
-          ['102', '店長B', '店長', '大阪', '12345678'],
-          ['103', '店長C', '店長', '東京', '12345678'],
-          ['104', '店長D', '店長', '福岡', '12345678'],
-          ['201', 'AM太郎', 'AM', '東京', '12345678'],
-          ['202', 'AM次郎', 'AM', '大阪', '12345678'],
-          ['301', 'BMボス', 'BM', '本部', '12345678']
-        ];
-        sheet.getRange(2, 1, demoUsers.length, demoUsers[0].length).setValues(demoUsers);
-        messages.push(`Added initial users to ${name}`);
+        // デモデータは追加しません
+        messages.push(`Initialized empty ${name} sheet`);
       }
     }
   }
