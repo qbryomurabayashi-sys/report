@@ -634,7 +634,12 @@ app.post("/api/saveComment", async (req, res) => {
 // Tasks API
 app.get("/api/tasks", async (req, res) => {
   const gasResult = await callGas('getTasks', {}, true);
-  if (gasResult) return res.json(gasResult);
+  if (gasResult && Array.isArray(gasResult)) {
+    return res.json(gasResult);
+  }
+  if (gasResult && gasResult.error) {
+    console.error("GAS error for getTasks:", gasResult.error);
+  }
   res.json(getData().tasks || []);
 });
 
@@ -689,7 +694,12 @@ app.delete("/api/tasks/:id", async (req, res) => {
 // Projects API
 app.get("/api/projects", async (req, res) => {
   const gasResult = await callGas('getProjects', {}, true);
-  if (gasResult) return res.json(gasResult);
+  if (gasResult && Array.isArray(gasResult)) {
+    return res.json(gasResult);
+  }
+  if (gasResult && gasResult.error) {
+    console.error("GAS error for getProjects:", gasResult.error);
+  }
   res.json(getData().projects || []);
 });
 

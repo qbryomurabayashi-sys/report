@@ -41,11 +41,9 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
   const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
-    if (user.Role === "AM" || user.Role === "BM") {
-      fetch("/api/tasks").then(res => res.json()).then(data => setTasks(data));
-      fetch("/api/projects").then(res => res.json()).then(data => setProjects(data));
-    }
-  }, [user.Role]);
+    fetch("/api/tasks").then(res => res.json()).then(data => setTasks(Array.isArray(data) ? data : []));
+    fetch("/api/projects").then(res => res.json()).then(data => setProjects(Array.isArray(data) ? data : []));
+  }, []);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
@@ -210,7 +208,7 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
       </motion.div>
 
       {/* User Info Header */}
-      <header className="flex justify-between items-center mb-12 glass-card p-6 rounded-2xl border-l-4 border-neon-blue">
+      <header className="flex justify-between items-center mb-8 glass-card p-6 rounded-2xl border-l-4 border-neon-blue">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setIsMenuOpen(true)}
@@ -224,6 +222,76 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
           </div>
         </div>
       </header>
+
+      {/* Progress Summary */}
+      {(() => {
+        let relevantTasks = tasks;
+        let relevantProjects = projects;
+
+        if (user.Role === "店長") {
+          relevantTasks = tasks.filter(t => t.Assignee === user.Name);
+          relevantProjects = projects.filter(p => p.Assignee === user.Name || p.WithWhom.includes(user.Name));
+        }
+
+        if (relevantTasks.length === 0 && relevantProjects.length === 0) return null;
+
+        const completedTasks = relevantTasks.filter(t => t.Status === 'completed').length;
+        const totalTasks = relevantTasks.length;
+        const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+        const completedProjects = relevantProjects.filter(p => p.Status === 'completed').length;
+        const totalProjects = relevantProjects.length;
+        const projectProgress = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0;
+
+        return (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-neon-blue"
+          >
+            <h3 className="text-lg font-bold text-neon-blue mb-4 flex items-center gap-2">
+              <CheckSquare size={20} />
+              <span>進行状況サマリー</span>
+            </h3>
+            
+            <div className="space-y-5">
+              {totalTasks > 0 && (
+                <div>
+                  <div className="flex justify-between text-xs mb-2">
+                    <span className="text-gray-400">タスク ({completedTasks}/{totalTasks})</span>
+                    <span className="text-neon-blue font-digital">{taskProgress}%</span>
+                  </div>
+                  <div className="h-2 bg-black/50 rounded-full overflow-hidden border border-white/5">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${taskProgress}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className="h-full bg-neon-blue shadow-[0_0_10px_#00f3ff]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {totalProjects > 0 && (
+                <div>
+                  <div className="flex justify-between text-xs mb-2">
+                    <span className="text-gray-400">プロジェクト ({completedProjects}/{totalProjects})</span>
+                    <span className="text-neon-orange font-digital">{projectProgress}%</span>
+                  </div>
+                  <div className="h-2 bg-black/50 rounded-full overflow-hidden border border-white/5">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${projectProgress}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className="h-full bg-neon-orange shadow-[0_0_10px_#ff9d00]"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Dashboard Calendar for AM/BM */}
       {renderCalendar()}
