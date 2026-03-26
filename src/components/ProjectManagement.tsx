@@ -41,7 +41,12 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
     try {
       const res = await fetch("/api/projects");
       const data = await res.json();
-      setProjects(Array.isArray(data) ? data : []);
+      if (data && data.error) {
+        console.error("GAS error for getProjects:", data.error);
+        setProjects([]);
+      } else {
+        setProjects(Array.isArray(data) ? data : []);
+      }
     } catch (error) {
       console.error("Failed to fetch projects", error);
       setProjects([]);
