@@ -28,7 +28,9 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
   const fetchTasks = async (refresh = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/tasks${refresh ? "?refresh=true" : ""}`);
+      const res = await fetch(`/api/tasks${refresh ? "?refresh=true" : ""}`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       const data = await res.json();
       if (data && data.error) {
         console.error("GAS error for getTasks:", data.error);

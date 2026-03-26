@@ -177,6 +177,11 @@ async function callGas(action: string, payload: any = {}, useCache = false) {
     });
 
     clearTimeout(timeoutId);
+    if (!response.ok) {
+      console.error(`GAS response not OK (${action}):`, response.status, response.statusText);
+      return null;
+    }
+
     const text = await response.text();
     const contentType = response.headers.get("content-type");
 
@@ -635,16 +640,26 @@ app.post("/api/saveComment", async (req, res) => {
 app.get("/api/tasks", async (req, res) => {
   const { refresh } = req.query;
   const gasResult = await callGas('getTasks', {}, refresh !== "true");
+  
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  
   if (gasResult && Array.isArray(gasResult)) {
+    // Update local cache for offline/fallback use
     const data = getData();
     data.tasks = gasResult;
     saveData(data);
     return res.json(gasResult);
   }
+
   if (gasResult && gasResult.error) {
     console.error("GAS error for getTasks:", gasResult.error);
+    return res.status(500).json(gasResult);
   }
-  res.json(getData().tasks || []);
+
+  // Fallback to local data if GAS is unavailable
+  console.log("Falling back to local data for getTasks");
+  const data = getData();
+  res.json(data.tasks || []);
 });
 
 app.post("/api/tasks", async (req, res) => {
@@ -701,16 +716,26 @@ app.delete("/api/tasks/:id", async (req, res) => {
 app.get("/api/projects", async (req, res) => {
   const { refresh } = req.query;
   const gasResult = await callGas('getProjects', {}, refresh !== "true");
+  
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
   if (gasResult && Array.isArray(gasResult)) {
+    // Update local cache for offline/fallback use
     const data = getData();
     data.projects = gasResult;
     saveData(data);
     return res.json(gasResult);
   }
+
   if (gasResult && gasResult.error) {
     console.error("GAS error for getProjects:", gasResult.error);
+    return res.status(500).json(gasResult);
   }
-  res.json(getData().projects || []);
+
+  // Fallback to local data if GAS is unavailable
+  console.log("Falling back to local data for getProjects");
+  const data = getData();
+  res.json(data.projects || []);
 });
 
 app.post("/api/projects", async (req, res) => {

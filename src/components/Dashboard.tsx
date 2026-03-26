@@ -55,11 +55,15 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
       const debugData = await debugRes.json();
       setGasStatus({ configured: debugData.gasUrlSet, error: false });
 
-      const tasksRes = await fetch(`/api/tasks${refresh ? "?refresh=true" : ""}`);
+      const tasksRes = await fetch(`/api/tasks${refresh ? "?refresh=true" : ""}`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       const tasksData = await tasksRes.json();
       setTasks(Array.isArray(tasksData) ? tasksData : []);
 
-      const projectsRes = await fetch(`/api/projects${refresh ? "?refresh=true" : ""}`);
+      const projectsRes = await fetch(`/api/projects${refresh ? "?refresh=true" : ""}`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       const projectsData = await projectsRes.json();
       setProjects(Array.isArray(projectsData) ? projectsData : []);
       

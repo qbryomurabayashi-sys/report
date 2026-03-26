@@ -40,7 +40,9 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
   const fetchProjects = async (refresh = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/projects${refresh ? "?refresh=true" : ""}`);
+      const res = await fetch(`/api/projects${refresh ? "?refresh=true" : ""}`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       const data = await res.json();
       if (data && data.error) {
         console.error("GAS error for getProjects:", data.error);
