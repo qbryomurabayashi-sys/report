@@ -1,11 +1,17 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
 import { User } from "../App";
-import { ChevronLeft, Send, ChartLine, Info } from "lucide-react";
+import { ChevronLeft, Send, ChartLine, Info, Plus, Trash2 } from "lucide-react";
 
 interface DecadeFormProps {
   user: User;
   onBack: () => void;
+}
+
+interface TaskInput {
+  Assignee: string;
+  Deadline: string;
+  Content: string;
 }
 
 export function DecadeForm({ user, onBack }: DecadeFormProps) {
@@ -15,6 +21,7 @@ export function DecadeForm({ user, onBack }: DecadeFormProps) {
     CoachingRecord: "",
     SelfReflection: "",
   });
+  const [tasks, setTasks] = useState<TaskInput[]>([]);
   const [lastReport, setLastReport] = useState<any>(null);
   const [isLoadingLastReport, setIsLoadingLastReport] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,6 +55,23 @@ export function DecadeForm({ user, onBack }: DecadeFormProps) {
         body: JSON.stringify({ ...formData, UserID: user.UserID }),
       });
       const data = await response.json();
+      
+      // Save tasks if any
+      for (const task of tasks) {
+        if (task.Content && task.Deadline && task.Assignee) {
+          await fetch("/api/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              assignee: task.Assignee,
+              deadline: task.Deadline,
+              content: task.Content,
+              status: "pending"
+            })
+          });
+        }
+      }
+
       if (data.success) {
         alert("旬報を送信しました");
         onBack();
@@ -57,6 +81,22 @@ export function DecadeForm({ user, onBack }: DecadeFormProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const addTask = () => {
+    setTasks([...tasks, { Assignee: user.Name, Deadline: "", Content: "" }]);
+  };
+
+  const updateTask = (index: number, field: keyof TaskInput, value: string) => {
+    const newTasks = [...tasks];
+    newTasks[index][field] = value;
+    setTasks(newTasks);
+  };
+
+  const removeTask = (index: number) => {
+    const newTasks = [...tasks];
+    newTasks.splice(index, 1);
+    setTasks(newTasks);
   };
 
   return (
@@ -194,6 +234,81 @@ export function DecadeForm({ user, onBack }: DecadeFormProps) {
                 placeholder="気づき（自己責任）：&#10;来週の実験： "
                 required
               />
+            </div>
+          </div>
+          {/* Section 4: Tasks */}
+          <div className="p-6 glass-card rounded-2xl border-l-4 border-neon-purple bg-neon-purple/5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-bold text-neon-purple flex items-center gap-2">
+                <span className="bg-neon-purple text-black px-2 py-0.5 rounded text-[10px] font-digital">04</span>
+                やることリスト（タスク化）
+              </h3>
+              <button
+                type="button"
+                onClick={addTask}
+                className="flex items-center gap-1 text-[10px] text-neon-purple hover:text-white transition-colors bg-neon-purple/20 px-2 py-1 rounded"
+              >
+                <Plus size={12} /> 追加
+              </button>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[9px] text-gray-400 leading-relaxed mb-3">
+                ここで入力したタスクは、タスク管理画面とカレンダーに自動で同期されます。
+              </p>
+              
+              {tasks.length === 0 ? (
+                <div className="text-center text-gray-500 text-[10px] py-4 border border-dashed border-gray-700 rounded-lg">
+                  タスクを追加してください
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.map((task, index) => (
+                    <div key={index} className="bg-black/40 p-3 rounded-xl border border-white/10 relative group">
+                      <button
+                        type="button"
+                        onClick={() => removeTask(index)}
+                        className="absolute -top-2 -right-2 bg-red-500/20 text-red-400 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="block text-[8px] text-gray-500 mb-1">誰が</label>
+                          <input
+                            type="text"
+                            value={task.Assignee}
+                            onChange={(e) => updateTask(index, "Assignee", e.target.value)}
+                            className="w-full bg-black/50 border border-gray-800 rounded p-2 text-[10px] text-white focus:border-neon-purple outline-none"
+                            placeholder="担当者"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] text-gray-500 mb-1">いつまでに</label>
+                          <input
+                            type="date"
+                            value={task.Deadline}
+                            onChange={(e) => updateTask(index, "Deadline", e.target.value)}
+                            className="w-full bg-black/50 border border-gray-800 rounded p-2 text-[10px] text-white focus:border-neon-purple outline-none"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[8px] text-gray-500 mb-1">何を</label>
+                        <input
+                          type="text"
+                          value={task.Content}
+                          onChange={(e) => updateTask(index, "Content", e.target.value)}
+                          className="w-full bg-black/50 border border-gray-800 rounded p-2 text-[10px] text-white focus:border-neon-purple outline-none"
+                          placeholder="タスク内容"
+                          required
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

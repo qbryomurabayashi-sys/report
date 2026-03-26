@@ -6,6 +6,8 @@ import { WeeklyForm } from "./components/WeeklyForm";
 import { DecadeForm } from "./components/DecadeForm";
 import { ReportFeed } from "./components/ReportFeed";
 import { PinModal } from "./components/PinModal";
+import { TaskManagement } from "./components/TaskManagement";
+import { ProjectManagement } from "./components/ProjectManagement";
 
 export type Role = "店長" | "AM" | "BM";
 
@@ -16,7 +18,7 @@ export interface User {
   Area: string;
 }
 
-export type AppState = "loading" | "login" | "dashboard" | "weekly_form" | "decade_form" | "report_feed";
+export type AppState = "loading" | "login" | "dashboard" | "weekly_form" | "decade_form" | "report_feed" | "task_management" | "project_management";
 
 // Helper for web push
 function urlBase64ToUint8Array(base64String: string) {
@@ -155,6 +157,18 @@ export default function App() {
           )}
           {appState === "report_feed" && (
             <ReportFeed 
+              user={currentUser} 
+              onBack={() => setAppState("dashboard")} 
+            />
+          )}
+          {appState === "task_management" && (
+            <TaskManagement 
+              user={currentUser} 
+              onBack={() => setAppState("dashboard")} 
+            />
+          )}
+          {appState === "project_management" && (
+            <ProjectManagement 
               user={currentUser} 
               onBack={() => setAppState("dashboard")} 
             />

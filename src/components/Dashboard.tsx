@@ -1,10 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { User, AppState } from "../App";
-import { Calendar, ChartLine, Lock, Bell, ChevronRight, Clock, Menu } from "lucide-react";
-import { differenceInSeconds, nextSunday, setHours, setMinutes, setSeconds, format, isAfter } from "date-fns";
+import { Calendar, ChartLine, Lock, Bell, ChevronRight, Clock, Menu, CheckSquare, FolderKanban } from "lucide-react";
+import { differenceInSeconds, nextSunday, setHours, setMinutes, setSeconds, format, isAfter, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 import { ja } from "date-fns/locale";
 import { SidebarMenu } from "./SidebarMenu";
+
+interface Task {
+  TaskID: string;
+  Assignee: string;
+  Deadline: string;
+  Content: string;
+  Status: string;
+}
+
+interface Project {
+  ProjectID: string;
+  Assignee: string;
+  WithWhom: string;
+  StartDate: string;
+  EndDate: string;
+  What: string;
+  Purpose: string;
+  Extent: string;
+  Status: string;
+}
 
 interface DashboardProps {
   user: User;
@@ -17,6 +37,15 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [deadlineDate, setDeadlineDate] = useState<Date | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    if (user.Role === "AM" || user.Role === "BM") {
+      fetch("/api/tasks").then(res => res.json()).then(data => setTasks(data));
+      fetch("/api/projects").then(res => res.json()).then(data => setProjects(data));
+    }
+  }, [user.Role]);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
@@ -73,6 +102,59 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
   }, [user.Role]);
 
   const isDeadlineClose = timeLeft.days === 0 && timeLeft.hours < 24;
+
+  const renderCalendar = () => {
+    if (user.Role !== "AM" && user.Role !== "BM") return null;
+
+    const today = new Date();
+    const monthStart = startOfMonth(today);
+    const monthEnd = endOfMonth(today);
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+    return (
+      <div className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-neon-orange">
+        <h3 className="text-lg font-bold text-neon-orange mb-4 flex items-center gap-2">
+          <Calendar size={20} />
+          <span>タスク＆プロジェクトカレンダー</span>
+        </h3>
+        <div className="grid grid-cols-7 gap-1 text-center mb-2">
+          {["日", "月", "火", "水", "木", "金", "土"].map(day => (
+            <div key={day} className="text-[10px] text-gray-500 font-bold">{day}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+            <div key={`empty-${i}`} className="p-2" />
+          ))}
+          {days.map(day => {
+            const dayTasks = tasks.filter(t => t.Deadline === format(day, "yyyy-MM-dd") && t.Status !== 'completed');
+            const dayProjects = projects.filter(p => {
+              if (p.Status === 'completed') return false;
+              const start = new Date(p.StartDate);
+              const end = new Date(p.EndDate);
+              return day >= start && day <= end;
+            });
+            const hasEvents = dayTasks.length > 0 || dayProjects.length > 0;
+            const isToday = isSameDay(day, today);
+
+            return (
+              <div 
+                key={day.toISOString()} 
+                className={`p-1 rounded-md text-center text-xs relative ${
+                  isToday ? "bg-neon-orange/20 text-neon-orange font-bold border border-neon-orange/50" : "text-gray-300"
+                }`}
+              >
+                {format(day, "d")}
+                {hasEvents && (
+                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-neon-blue shadow-[0_0_4px_#00f3ff]" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="container mx-auto px-4 pt-8 pb-24 max-w-2xl">
@@ -143,6 +225,9 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
         </div>
       </header>
 
+      {/* Dashboard Calendar for AM/BM */}
+      {renderCalendar()}
+
       {/* Action Buttons */}
       <div className="grid grid-cols-1 gap-4">
         {user.Role === "店長" && (
@@ -181,6 +266,44 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
             </div>
             <ChevronRight size={20} className="text-gray-700 group-hover:text-neon-orange transition-all" />
           </motion.button>
+        )}
+
+        {(user.Role === "AM" || user.Role === "BM") && (
+          <>
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onNavigate("task_management")}
+              className="glass-card p-6 rounded-2xl flex items-center justify-between group hover:border-neon-blue transition-all"
+            >
+              <div className="flex items-center gap-6">
+                <div className="p-4 bg-neon-blue/10 rounded-xl text-neon-blue group-hover:bg-neon-blue group-hover:text-black transition-all">
+                  <CheckSquare size={24} />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-bold text-lg group-hover:text-neon-blue transition-all">タスク管理</h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">To-Doリストと期限</p>
+                </div>
+              </div>
+              <ChevronRight size={20} className="text-gray-700 group-hover:text-neon-blue transition-all" />
+            </motion.button>
+
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onNavigate("project_management")}
+              className="glass-card p-6 rounded-2xl flex items-center justify-between group hover:border-neon-orange transition-all"
+            >
+              <div className="flex items-center gap-6">
+                <div className="p-4 bg-neon-orange/10 rounded-xl text-neon-orange group-hover:bg-neon-orange group-hover:text-black transition-all">
+                  <FolderKanban size={24} />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-bold text-lg group-hover:text-neon-orange transition-all">プロジェクト管理</h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">中長期プロジェクト</p>
+                </div>
+              </div>
+              <ChevronRight size={20} className="text-gray-700 group-hover:text-neon-orange transition-all" />
+            </motion.button>
+          </>
         )}
 
         <motion.button

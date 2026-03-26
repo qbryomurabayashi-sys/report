@@ -56,6 +56,24 @@ function doPost(e) {
       case 'updatePin':
         result = updatePin(params.userId, params.newPin);
         break;
+      case 'getTasks':
+        result = getTasks();
+        break;
+      case 'saveTask':
+        result = saveTask(params);
+        break;
+      case 'deleteTask':
+        result = deleteTask(params.taskId);
+        break;
+      case 'getProjects':
+        result = getProjects();
+        break;
+      case 'saveProject':
+        result = saveProject(params);
+        break;
+      case 'deleteProject':
+        result = deleteProject(params.projectId);
+        break;
       default:
         result = { error: 'Invalid action: ' + action };
     }
@@ -297,6 +315,127 @@ function saveDecadeReport(data) {
   return { success: true };
 }
 
+function getTasks() {
+  return getSheetData('Tasks');
+}
+
+function saveTask(params) {
+  const ss = getSS();
+  if (!ss) return { success: false, message: 'Spreadsheet not found' };
+  const sheet = ss.getSheetByName('Tasks');
+  if (!sheet) return { success: false, message: 'Tasks sheet not found' };
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  if (params.taskId) {
+    // Update existing
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(params.taskId)) {
+        if (params.status !== undefined) sheet.getRange(i + 1, headers.indexOf('Status') + 1).setValue(params.status);
+        if (params.assignee !== undefined) sheet.getRange(i + 1, headers.indexOf('Assignee') + 1).setValue(params.assignee);
+        if (params.deadline !== undefined) sheet.getRange(i + 1, headers.indexOf('Deadline') + 1).setValue(params.deadline);
+        if (params.content !== undefined) sheet.getRange(i + 1, headers.indexOf('Content') + 1).setValue(params.content);
+        return { success: true, message: 'Task updated' };
+      }
+    }
+  }
+  
+  // Create new
+  const newId = 'T' + Date.now();
+  const newRow = [
+    newId,
+    params.assignee || '',
+    params.deadline || '',
+    params.content || '',
+    params.status || 'pending',
+    new Date().toISOString(),
+    params.source || 'manual'
+  ];
+  sheet.appendRow(newRow);
+  return { success: true, taskId: newId };
+}
+
+function deleteTask(taskId) {
+  const ss = getSS();
+  if (!ss) return { success: false, message: 'Spreadsheet not found' };
+  const sheet = ss.getSheetByName('Tasks');
+  if (!sheet) return { success: false, message: 'Tasks sheet not found' };
+  
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(taskId)) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Task deleted' };
+    }
+  }
+  return { success: false, message: 'Task not found' };
+}
+
+function getProjects() {
+  return getSheetData('Projects');
+}
+
+function saveProject(params) {
+  const ss = getSS();
+  if (!ss) return { success: false, message: 'Spreadsheet not found' };
+  const sheet = ss.getSheetByName('Projects');
+  if (!sheet) return { success: false, message: 'Projects sheet not found' };
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  if (params.projectId) {
+    // Update existing
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(params.projectId)) {
+        if (params.status !== undefined) sheet.getRange(i + 1, headers.indexOf('Status') + 1).setValue(params.status);
+        if (params.assignee !== undefined) sheet.getRange(i + 1, headers.indexOf('Assignee') + 1).setValue(params.assignee);
+        if (params.withWhom !== undefined) sheet.getRange(i + 1, headers.indexOf('WithWhom') + 1).setValue(params.withWhom);
+        if (params.startDate !== undefined) sheet.getRange(i + 1, headers.indexOf('StartDate') + 1).setValue(params.startDate);
+        if (params.endDate !== undefined) sheet.getRange(i + 1, headers.indexOf('EndDate') + 1).setValue(params.endDate);
+        if (params.what !== undefined) sheet.getRange(i + 1, headers.indexOf('What') + 1).setValue(params.what);
+        if (params.purpose !== undefined) sheet.getRange(i + 1, headers.indexOf('Purpose') + 1).setValue(params.purpose);
+        if (params.extent !== undefined) sheet.getRange(i + 1, headers.indexOf('Extent') + 1).setValue(params.extent);
+        return { success: true, message: 'Project updated' };
+      }
+    }
+  }
+  
+  // Create new
+  const newId = 'P' + Date.now();
+  const newRow = [
+    newId,
+    params.assignee || '',
+    params.withWhom || '',
+    params.startDate || '',
+    params.endDate || '',
+    params.what || '',
+    params.purpose || '',
+    params.extent || '',
+    params.status || 'pending',
+    new Date().toISOString()
+  ];
+  sheet.appendRow(newRow);
+  return { success: true, projectId: newId };
+}
+
+function deleteProject(projectId) {
+  const ss = getSS();
+  if (!ss) return { success: false, message: 'Spreadsheet not found' };
+  const sheet = ss.getSheetByName('Projects');
+  if (!sheet) return { success: false, message: 'Projects sheet not found' };
+  
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(projectId)) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Project deleted' };
+    }
+  }
+  return { success: false, message: 'Project not found' };
+}
+
 function setupSheets() {
   const ss = getSS();
   if (!ss) {
@@ -307,7 +446,9 @@ function setupSheets() {
     'WeeklyReports': ['ReportID', 'UserID', 'TargetDate', 'SubmittedAt', 'Goal', 'Result', 'ReviewPlus', 'ReviewMinus', 'NextActionPurpose', 'NextActionDetail', 'Consultation', 'AM_Comment', 'BM_Comment', 'AM_Comment_Name', 'BM_Comment_Name'],
     'DecadeReports': ['ReportID', 'UserID', 'TargetDecade', 'SubmittedAt', 'AreaFact', 'CoachingRecord', 'SelfReflection', 'BM_Comment', 'BM_Comment_Name'],
     'Likes': ['LikeID', 'ReportID', 'UserID', 'CreatedAt'],
-    'Comments': ['CommentID', 'ReportID', 'UserID', 'Role', 'Text', 'CreatedAt']
+    'Comments': ['CommentID', 'ReportID', 'UserID', 'Role', 'Text', 'CreatedAt'],
+    'Tasks': ['TaskID', 'Assignee', 'Deadline', 'Content', 'Status', 'CreatedAt', 'Source'],
+    'Projects': ['ProjectID', 'Assignee', 'WithWhom', 'StartDate', 'EndDate', 'What', 'Purpose', 'Extent', 'Status', 'CreatedAt']
   };
   
   let messages = [];
@@ -353,26 +494,7 @@ function setupSheets() {
           ['301', 'BMボス', 'BM', '本部', '12345678']
         ];
         sheet.getRange(2, 1, demoUsers.length, demoUsers[0].length).setValues(demoUsers);
-        messages.push(`Added demo users to ${name}`);
-      } else if (name === 'WeeklyReports') {
-        const now = new Date();
-        const demoWeekly = [
-          ['W1', '101', '2026-03-20', now, '売上120%達成', '順調', '接客向上', '在庫不足', '改善', '棚卸の徹底', 'なし', '', ''],
-          ['W2', '102', '2026-03-20', now, 'CS向上', '未達', '清掃徹底', '人手不足', '採用', '面接実施', '求人費について', '', ''],
-          ['W3', '201', '2026-03-20', now, 'エリア巡回', '完了', '店長面談', '移動効率', '効率化', 'ルート見直し', 'なし', '', ''],
-          ['W4', '103', '2026-03-20', now, '新規客数アップ', '好調', 'チラシ効果あり', 'オペレーションミス', '教育', '新人研修の実施', '特になし', '', ''],
-          ['W5', '104', '2026-03-20', now, '福岡エリア拡大', '順調', '新規オープン成功', '物流遅延', '改善', '配送ルート最適化', 'なし', '', '']
-        ];
-        sheet.getRange(2, 1, demoWeekly.length, demoWeekly[0].length).setValues(demoWeekly);
-        messages.push(`Added demo reports to ${name}`);
-      } else if (name === 'DecadeReports') {
-        const now = new Date();
-        const demoDecade = [
-          ['D1', '201', '2026-03-下旬', now, '東京エリアは活気あり', '店長Aへのコーチング実施', '自身のタイムマネジメントに課題'],
-          ['D2', '202', '2026-03-下旬', now, '大阪エリアは競合店の影響あり', '店長Bへのオペレーション指導', '数値分析の精度向上']
-        ];
-        sheet.getRange(2, 1, demoDecade.length, demoDecade[0].length).setValues(demoDecade);
-        messages.push(`Added demo reports to ${name}`);
+        messages.push(`Added initial users to ${name}`);
       }
     }
   }

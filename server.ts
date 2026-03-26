@@ -97,6 +97,26 @@ function checkDeadlines() {
       body: "明日の18:00が旬報の提出期限です。作成をお願いします。"
     });
   }
+
+  // Check for Tasks deadline - 1 day before deadline at 9:00 AM
+  if (currentHour === 9 && data.tasks) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    const dueTasks = data.tasks.filter((t: any) => t.Status !== 'completed' && t.Deadline === tomorrowStr);
+    
+    dueTasks.forEach((task: any) => {
+      // Find user by name (Assignee)
+      const user = data.users.find((u: any) => u.Name === task.Assignee);
+      if (user) {
+        notifyUsers([String(user.UserID)], {
+          title: "【タスク期限1日前】",
+          body: `明日は「${task.Content}」の期限です。`
+        });
+      }
+    });
+  }
 }
 
 // Run deadline check every 30 minutes for better reliability
@@ -197,55 +217,16 @@ const initialData = {
     { UserID: "202", Name: "AM次郎", Role: "AM", Area: "大阪", PIN: "12345678" },
     { UserID: "301", Name: "BMボス", Role: "BM", Area: "本部", PIN: "12345678" }
   ],
-  weeklyReports: [
-    {
-      ReportID: "demo-w1",
-      UserID: "101",
-      TargetDate: "2026-03-20",
-      SubmittedAt: new Date().toISOString(),
-      Goal: "売上120%達成",
-      Result: "順調",
-      ReviewPlus: "接客向上",
-      ReviewMinus: "在庫不足",
-      NextActionPurpose: "改善",
-      NextActionDetail: "棚卸の徹底",
-      Consultation: "なし",
-      AM_Comment: "素晴らしい！",
-      BM_Comment: ""
-    },
-    {
-      ReportID: "demo-w4",
-      UserID: "103",
-      TargetDate: "2026-03-20",
-      SubmittedAt: new Date().toISOString(),
-      Goal: "新規客数アップ",
-      Result: "好調",
-      ReviewPlus: "チラシ効果あり",
-      ReviewMinus: "オペレーションミス",
-      NextActionPurpose: "教育",
-      NextActionDetail: "新人研修の実施",
-      Consultation: "特になし",
-      AM_Comment: "期待しています",
-      BM_Comment: ""
-    }
-  ],
-  decadeReports: [
-    {
-      ReportID: "demo-d1",
-      UserID: "201",
-      TargetDecade: "2026-03-下旬",
-      SubmittedAt: new Date().toISOString(),
-      AreaFact: "東京エリアは活気あり",
-      CoachingRecord: "店長Aへのコーチング実施",
-      SelfReflection: "自身のタイムマネジメントに課題"
-    }
-  ],
+  weeklyReports: [],
+  decadeReports: [],
   likes: [],
-  comments: []
+  comments: [],
+  tasks: [],
+  projects: []
 };
 
 if (!fs.existsSync(DATA_FILE)) {
-  console.log("Creating initial db.json with demo data...");
+  console.log("Creating initial db.json with empty data...");
   fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
 }
 
@@ -648,6 +629,123 @@ app.post("/api/saveComment", async (req, res) => {
   } else {
     res.json({ success: false });
   }
+});
+
+// Tasks API
+app.get("/api/tasks", async (req, res) => {
+  const gasResult = await callGas('getTasks', {}, true);
+  if (gasResult) return res.json(gasResult);
+  res.json(getData().tasks || []);
+});
+
+app.post("/api/tasks", async (req, res) => {
+  const gasResult = await callGas('saveTask', req.body, false);
+  if (gasResult) {
+    invalidateGasCache('getTasks');
+    return res.json(gasResult);
+  }
+
+  const data = getData();
+  if (!data.tasks) data.tasks = [];
+  
+  if (req.body.taskId) {
+    const task = data.tasks.find((t: any) => t.TaskID === req.body.taskId);
+    if (task) {
+      if (req.body.status !== undefined) task.Status = req.body.status;
+      if (req.body.assignee !== undefined) task.Assignee = req.body.assignee;
+      if (req.body.deadline !== undefined) task.Deadline = req.body.deadline;
+      if (req.body.content !== undefined) task.Content = req.body.content;
+    }
+  } else {
+    data.tasks.push({
+      TaskID: "T" + Date.now(),
+      Assignee: req.body.assignee || '',
+      Deadline: req.body.deadline || '',
+      Content: req.body.content || '',
+      Status: req.body.status || 'pending',
+      CreatedAt: new Date().toISOString(),
+      Source: req.body.source || 'manual'
+    });
+  }
+  saveData(data);
+  res.json({ success: true });
+});
+
+app.delete("/api/tasks/:id", async (req, res) => {
+  const gasResult = await callGas('deleteTask', { taskId: req.params.id }, false);
+  if (gasResult) {
+    invalidateGasCache('getTasks');
+    return res.json(gasResult);
+  }
+
+  const data = getData();
+  if (data.tasks) {
+    data.tasks = data.tasks.filter((t: any) => t.TaskID !== req.params.id);
+    saveData(data);
+  }
+  res.json({ success: true });
+});
+
+// Projects API
+app.get("/api/projects", async (req, res) => {
+  const gasResult = await callGas('getProjects', {}, true);
+  if (gasResult) return res.json(gasResult);
+  res.json(getData().projects || []);
+});
+
+app.post("/api/projects", async (req, res) => {
+  const gasResult = await callGas('saveProject', req.body, false);
+  if (gasResult) {
+    invalidateGasCache('getProjects');
+    return res.json(gasResult);
+  }
+
+  const data = getData();
+  if (!data.projects) data.projects = [];
+  
+  if (req.body.projectId) {
+    const project = data.projects.find((p: any) => p.ProjectID === req.body.projectId);
+    if (project) {
+      if (req.body.status !== undefined) project.Status = req.body.status;
+      if (req.body.assignee !== undefined) project.Assignee = req.body.assignee;
+      if (req.body.withWhom !== undefined) project.WithWhom = req.body.withWhom;
+      if (req.body.startDate !== undefined) project.StartDate = req.body.startDate;
+      if (req.body.endDate !== undefined) project.EndDate = req.body.endDate;
+      if (req.body.what !== undefined) project.What = req.body.what;
+      if (req.body.purpose !== undefined) project.Purpose = req.body.purpose;
+      if (req.body.extent !== undefined) project.Extent = req.body.extent;
+    }
+  } else {
+    data.projects.push({
+      ProjectID: "P" + Date.now(),
+      Assignee: req.body.assignee || '',
+      WithWhom: req.body.withWhom || '',
+      StartDate: req.body.startDate || '',
+      EndDate: req.body.endDate || '',
+      What: req.body.what || '',
+      Purpose: req.body.purpose || '',
+      Extent: req.body.extent || '',
+      Status: req.body.status || 'pending',
+      CreatedAt: new Date().toISOString()
+    });
+  }
+  saveData(data);
+  res.json({ success: true });
+});
+
+app.delete("/api/projects/:id", async (req, res) => {
+  const gasResult = await callGas('deleteProject', { projectId: req.params.id }, false);
+  if (gasResult) {
+    invalidateGasCache('getProjects');
+    return res.json(gasResult);
+  }
+
+  const data = getData();
+  if (data.projects) {
+    data.projects = data.projects.filter((p: any) => p.ProjectID !== req.params.id);
+    saveData(data);
+  }
+  res.json({ success: true });
 });
 
 async function startServer() {
