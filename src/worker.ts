@@ -112,6 +112,20 @@ app.post('/api/saveDecadeReport', async (c) => {
   return c.json(data || { success: false });
 });
 
+app.post('/api/saveAMStatusReport', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(gasUrl, "saveAMStatusReport", body);
+  return c.json(data || { success: false });
+});
+
+app.get('/api/amStatusReports', async (c) => {
+  const gasUrl = c.env.GAS_URL;
+  const query = c.req.query();
+  const data = await callGas(gasUrl, "getAMStatusReports", query);
+  return c.json(data || []);
+});
+
 app.post('/api/toggleLike', async (c) => {
   const gasUrl = c.env.GAS_URL;
   const body = await c.req.json();
@@ -212,6 +226,24 @@ app.get('/api/members', async (c) => {
   return c.json(data || []);
 });
 
+app.get('/api/notifications/count', async (c) => {
+  const envGasUrl = c.env.GAS_URL;
+  const query = c.req.query();
+  const data = await callGas(envGasUrl, "getNotifications", query);
+  if (Array.isArray(data)) {
+    const unread = data.filter((n: any) => !n.IsRead).length;
+    return c.json({ count: unread });
+  }
+  return c.json({ count: 0 });
+});
+
+app.get('/api/notifications', async (c) => {
+  const envGasUrl = c.env.GAS_URL;
+  const query = c.req.query();
+  const data = await callGas(envGasUrl, "getNotifications", query);
+  return c.json(data || []);
+});
+
 app.post('/api/sendNotification', async (c) => {
   const envGasUrl = c.env.GAS_URL;
   const body = await c.req.json();
@@ -241,10 +273,12 @@ app.all('/api/*', (c) => {
     path: c.req.path,
     availableRoutes: [
       "GET /api/users", "POST /api/login", "POST /api/updatePin", "POST /api/subscribe",
-      "GET /api/weeklyReports", "GET /api/decadeReports", "POST /api/saveWeeklyReport",
-      "POST /api/saveDecadeReport", "POST /api/toggleLike", "POST /api/addComment",
-      "POST /api/saveComment", "GET /api/tasks", "POST /api/tasks", "DELETE /api/tasks/:id",
-      "GET /api/projects", "POST /api/projects", "DELETE /api/projects/:id", "GET /api/debug"
+      "GET /api/weeklyReports", "GET /api/decadeReports", "GET /api/amStatusReports",
+      "POST /api/saveWeeklyReport", "POST /api/saveDecadeReport", "POST /api/saveAMStatusReport",
+      "POST /api/toggleLike", "POST /api/addComment", "POST /api/saveComment",
+      "GET /api/tasks", "POST /api/tasks", "DELETE /api/tasks/:id",
+      "GET /api/projects", "POST /api/projects", "DELETE /api/projects/:id",
+      "GET /api/notifications", "GET /api/notifications/count", "GET /api/debug"
     ]
   }, 404);
 });
