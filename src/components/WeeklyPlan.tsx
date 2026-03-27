@@ -1,6 +1,6 @@
 import React from 'react';
-import { Sword, Target, Clock } from 'lucide-react';
-import { Task, Project } from '../types';
+import { Sword, Target, Clock, Flag } from 'lucide-react';
+import { Task, Project, Milestone } from '../types';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 
 interface WeeklyPlanProps {
@@ -12,6 +12,23 @@ const WeeklyPlan: React.FC<WeeklyPlanProps> = ({ tasks, projects }) => {
   const startDate = startOfWeek(new Date(), { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
   const hours = Array.from({ length: 14 }, (_, i) => i + 8); // 8:00 to 21:00
+
+  const getProjectColor = (id: string) => {
+    const colors = [
+      { bg: 'bg-neon-orange/20', border: 'border-neon-orange/30', text: 'text-neon-orange', neon: 'neon-text-orange', solid: 'bg-neon-orange' },
+      { bg: 'bg-neon-blue/20', border: 'border-neon-blue/30', text: 'text-neon-blue', neon: 'neon-text-blue', solid: 'bg-neon-blue' },
+      { bg: 'bg-green-400/20', border: 'border-green-400/30', text: 'text-green-400', neon: 'text-green-400', solid: 'bg-green-400' },
+      { bg: 'bg-purple-400/20', border: 'border-purple-400/30', text: 'text-purple-400', neon: 'text-purple-400', solid: 'bg-purple-400' },
+      { bg: 'bg-pink-400/20', border: 'border-pink-400/30', text: 'text-pink-400', neon: 'text-pink-400', solid: 'bg-pink-400' },
+      { bg: 'bg-yellow-400/20', border: 'border-yellow-400/30', text: 'text-yellow-400', neon: 'text-yellow-400', solid: 'bg-yellow-400' },
+    ];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
 
   const getDayItems = (day: Date) => {
     const dayStr = format(day, 'yyyy-MM-dd');
@@ -36,12 +53,18 @@ const WeeklyPlan: React.FC<WeeklyPlanProps> = ({ tasks, projects }) => {
           <div className="grid grid-cols-[80px_repeat(7,1fr)] border-b border-white/10">
             <div className="p-4 border-r border-white/10" />
             {days.map(day => (
-              <div key={day.toISOString()} className="p-4 text-center border-r border-white/10">
+              <div key={day.toISOString()} className="p-4 text-center border-r border-white/10 relative">
                 <div className="font-display text-[10px] uppercase tracking-widest text-gray-500">
                   {format(day, 'EEE')}
                 </div>
                 <div className={`text-sm font-bold ${isSameDay(day, new Date()) ? 'neon-text-blue' : ''}`}>
                   {format(day, 'MM/dd')}
+                </div>
+                {/* Milestones in header */}
+                <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-1">
+                  {projects.flatMap(p => (p.Milestones || []).filter(m => m.date === format(day, 'yyyy-MM-dd'))).map(m => (
+                    <div key={m.id} title={m.title} className="w-2 h-2 bg-neon-orange rounded-full shadow-[0_0_5px_rgba(255,157,0,0.8)]" />
+                  ))}
                 </div>
               </div>
             ))}
@@ -74,17 +97,20 @@ const WeeklyPlan: React.FC<WeeklyPlanProps> = ({ tasks, projects }) => {
                   return (
                     <div key={day.toISOString()} className="p-1 border-r border-white/5 relative group hover:bg-white/5 transition-colors">
                       <div className="flex flex-col gap-1">
-                        {hourProjects.map(p => (
-                          <div key={p.ProjectID} className="relative z-10">
-                            <div className="hp-gauge w-full">
-                              <div className="hp-gauge-orange w-full" />
+                        {hourProjects.map(p => {
+                          const color = getProjectColor(p.ProjectID);
+                          return (
+                            <div key={p.ProjectID} className="relative z-10">
+                              <div className={`hp-gauge w-full ${color.bg}`}>
+                                <div className={`${color.solid} w-full h-full opacity-50`} />
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Target className={`w-2.5 h-2.5 ${color.neon}`} />
+                                <span className={`text-[8px] ${color.text} truncate font-bold uppercase tracking-tighter`}>{p.What}</span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Target className="w-2.5 h-2.5 neon-text-orange" />
-                              <span className="text-[8px] text-neon-orange truncate font-bold uppercase tracking-tighter">{p.What}</span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                         {hourTasks.map(t => (
                           <div key={t.TaskID} className="relative z-10">
                             <div className="hp-gauge w-full">

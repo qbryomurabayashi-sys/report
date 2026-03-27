@@ -29,6 +29,9 @@ function doPost(e) {
       case 'getUsers':
         result = getUsers();
         break;
+      case 'getMembers':
+        result = getMembers();
+        break;
       case 'login':
         result = login(params.userId, params.pin);
         break;
@@ -132,6 +135,11 @@ function getSheetData(sheetName) {
 function getUsers() {
   const users = getSheetData('Users');
   return users.map(u => ({ UserID: u.UserID, Name: u.Name, Role: u.Role, Area: u.Area }));
+}
+
+function getMembers() {
+  const users = getSheetData('Users');
+  return users.map(u => ({ id: u.UserID, name: u.Name, role: u.Role, area: u.Area }));
 }
 
 function login(userId, pin) {
@@ -372,6 +380,50 @@ function deleteTask(taskId) {
   return { success: false, message: 'Task not found' };
 }
 
+function getNotifications(userId) {
+  const notifications = getSheetData('Notifications');
+  return notifications.filter(n => String(n.UserID) === String(userId));
+}
+
+function addNotification(params) {
+  const ss = getSS();
+  if (!ss) return { success: false, message: 'Spreadsheet not found' };
+  const sheet = ss.getSheetByName('Notifications');
+  if (!sheet) return { success: false, message: 'Notifications sheet not found' };
+  
+  const newId = 'N' + Date.now() + Math.floor(Math.random() * 1000);
+  const newRow = [
+    newId,
+    params.userId || '',
+    params.title || '',
+    params.message || '',
+    params.type || 'info',
+    new Date().toISOString(),
+    false
+  ];
+  sheet.appendRow(newRow);
+  return { success: true, notificationId: newId };
+}
+
+function markNotificationAsRead(notificationId) {
+  const ss = getSS();
+  if (!ss) return { success: false, message: 'Spreadsheet not found' };
+  const sheet = ss.getSheetByName('Notifications');
+  if (!sheet) return { success: false, message: 'Notifications sheet not found' };
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const isReadIdx = headers.indexOf('IsRead');
+  
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(notificationId)) {
+      sheet.getRange(i + 1, isReadIdx + 1).setValue(true);
+      return { success: true };
+    }
+  }
+  return { success: false, message: 'Notification not found' };
+}
+
 function getProjects() {
   return getSheetData('Projects');
 }
@@ -397,6 +449,7 @@ function saveProject(params) {
         if (params.what !== undefined) sheet.getRange(i + 1, headers.indexOf('What') + 1).setValue(params.what);
         if (params.purpose !== undefined) sheet.getRange(i + 1, headers.indexOf('Purpose') + 1).setValue(params.purpose);
         if (params.extent !== undefined) sheet.getRange(i + 1, headers.indexOf('Extent') + 1).setValue(params.extent);
+        if (params.milestones !== undefined) sheet.getRange(i + 1, headers.indexOf('Milestones') + 1).setValue(params.milestones);
         return { success: true, message: 'Project updated' };
       }
     }
@@ -414,7 +467,8 @@ function saveProject(params) {
     params.purpose || '',
     params.extent || '',
     params.status || 'pending',
-    new Date().toISOString()
+    new Date().toISOString(),
+    params.milestones || '[]'
   ];
   sheet.appendRow(newRow);
   return { success: true, projectId: newId };
@@ -448,7 +502,8 @@ function setupSheets() {
     'Likes': ['LikeID', 'ReportID', 'UserID', 'CreatedAt'],
     'Comments': ['CommentID', 'ReportID', 'UserID', 'Role', 'Text', 'CreatedAt'],
     'Tasks': ['TaskID', 'Assignee', 'Deadline', 'Content', 'Status', 'CreatedAt', 'Source'],
-    'Projects': ['ProjectID', 'Assignee', 'WithWhom', 'StartDate', 'EndDate', 'What', 'Purpose', 'Extent', 'Status', 'CreatedAt']
+    'Projects': ['ProjectID', 'Assignee', 'WithWhom', 'StartDate', 'EndDate', 'What', 'Purpose', 'Extent', 'Status', 'CreatedAt', 'Milestones'],
+    'Notifications': ['NotificationID', 'UserID', 'Title', 'Message', 'Type', 'CreatedAt', 'IsRead']
   };
   
   let messages = [];

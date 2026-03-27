@@ -21,11 +21,12 @@ interface SidebarMenuProps {
   user: User;
   onLogout: () => void;
   onOpenPinModal: () => void;
+  onNavigate: (state: any) => void;
 }
 
 type MenuTab = "main" | "updates" | "settings";
 
-export function SidebarMenu({ isOpen, onClose, user, onLogout, onOpenPinModal }: SidebarMenuProps) {
+export function SidebarMenu({ isOpen, onClose, user, onLogout, onOpenPinModal, onNavigate }: SidebarMenuProps) {
   const [activeTab, setActiveTab] = useState<MenuTab>("main");
   const [fontSize, setFontSize] = useState("medium");
   const [notifications, setNotifications] = useState(true);
@@ -122,12 +123,18 @@ export function SidebarMenu({ isOpen, onClose, user, onLogout, onOpenPinModal }:
                     <MenuButton 
                       icon={<History size={18} />} 
                       label="更新情報" 
-                      onClick={() => setActiveTab("updates")} 
+                      onClick={() => {
+                        onNavigate("version_info");
+                        onClose();
+                      }} 
                     />
                     <MenuButton 
                       icon={<Settings size={18} />} 
                       label="設定" 
-                      onClick={() => setActiveTab("settings")} 
+                      onClick={() => {
+                        onNavigate("settings");
+                        onClose();
+                      }} 
                     />
                     <div className="pt-4 mt-4 border-t border-white/5">
                       <MenuButton 

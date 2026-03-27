@@ -224,6 +224,7 @@ const initialData = {
   ],
   weeklyReports: [],
   decadeReports: [],
+  amStatusReports: [],
   likes: [],
   comments: [],
   tasks: [],
@@ -261,7 +262,8 @@ app.get("/api/debug", (req, res) => {
     timestamp: new Date().toISOString(),
     userCount: data.users.length,
     weeklyCount: data.weeklyReports.length,
-    decadeCount: data.decadeReports.length
+    decadeCount: data.decadeReports.length,
+    amStatusCount: data.amStatusReports?.length || 0
   });
 });
 
@@ -444,6 +446,63 @@ app.get("/api/decadeReports", async (req, res) => {
   res.json(result.reverse());
 });
 
+app.get("/api/amStatusReports", async (req, res) => {
+  const { userId, role, area, refresh } = req.query;
+  console.log(`Fetching AM status reports for UserID: ${userId}, Role: ${role}, Area: ${area}, Refresh: ${refresh}`);
+  
+  // Revert to userId and role only for the GAS payload
+  const gasData = await callGas("getAMStatusReports", { userId, role }, refresh !== "true");
+  
+  if (gasData) {
+    if (gasData.error) {
+      console.error(`GAS error in amStatusReports: ${gasData.error}`);
+      return res.status(400).json({ error: `GASエラー: ${gasData.error}` });
+    }
+    if (Array.isArray(gasData)) {
+      console.log(`Fetched ${gasData.length} AM status reports from GAS`);
+      return res.json(gasData);
+    }
+  }
+
+  if (GAS_URL && !GAS_URL.includes("TODO")) {
+    console.error("GAS request failed or returned invalid data for amStatusReports");
+    return res.status(503).json({ error: "Google Sheetsからのデータ取得に失敗しました。しばらく時間をおいて再試行してください。" });
+  }
+
+  const data = getData();
+  let filtered = data.amStatusReports || [];
+
+  if (role === "店長") {
+    filtered = []; // Store managers shouldn't see AM status reports usually, or maybe they can? Let's hide for now.
+  }
+
+  const result = filtered.map((r: any) => {
+    const user = data.users.find((u: any) => String(u.UserID) === String(r.UserID));
+    const likes = data.likes || [];
+    const comments = data.comments || [];
+    const reportLikes = likes.filter((l: any) => String(l.ReportID) === String(r.ReportID));
+    const likerNames = reportLikes.map((l: any) => {
+      const liker = data.users.find((u: any) => String(u.UserID) === String(l.UserID));
+      return liker ? liker.Name : "不明";
+    });
+    return { 
+      ...r, 
+      UserName: user ? user.Name : "不明",
+      UserArea: user ? user.Area : "",
+      LikeCount: reportLikes.length,
+      LikerNames: likerNames,
+      UserLiked: likes.some((l: any) => String(l.ReportID) === String(r.ReportID) && String(l.UserID) === String(userId)),
+      Comments: comments.filter((c: any) => String(c.ReportID) === String(r.ReportID)).map((c: any) => {
+        const cUser = data.users.find((u: any) => String(u.UserID) === String(c.UserID));
+        return { ...c, UserName: cUser ? cUser.Name : "不明" };
+      })
+    };
+  });
+
+  console.log(`Returning ${result.length} local AM status reports`);
+  res.json(result.reverse());
+});
+
 app.post("/api/toggleLike", async (req, res) => {
   const { reportId, userId } = req.body;
   console.log(`Toggle like for ReportID: ${reportId}, UserID: ${userId}`);
@@ -474,7 +533,8 @@ app.post("/api/toggleLike", async (req, res) => {
     const data = getData();
     const decadeReport = data.decadeReports.find((r: any) => String(r.ReportID) === String(reportId));
     const weeklyReport = data.weeklyReports.find((r: any) => String(r.ReportID) === String(reportId));
-    const report = decadeReport || weeklyReport;
+    const amStatusReport = data.amStatusReports?.find((r: any) => String(r.ReportID) === String(reportId));
+    const report = decadeReport || weeklyReport || amStatusReport;
     
     if (report && String(report.UserID) !== String(userId)) {
       const liker = data.users.find((u: any) => String(u.UserID) === String(userId));
@@ -512,7 +572,8 @@ app.post("/api/addComment", async (req, res) => {
   // Send push notification to report owner
   const decadeReport = data.decadeReports.find((r: any) => String(r.ReportID) === String(reportId));
   const weeklyReport = data.weeklyReports.find((r: any) => String(r.ReportID) === String(reportId));
-  const report = decadeReport || weeklyReport;
+  const amStatusReport = data.amStatusReports?.find((r: any) => String(r.ReportID) === String(reportId));
+  const report = decadeReport || weeklyReport || amStatusReport;
   
   if (report && String(report.UserID) !== String(userId)) {
     const commenter = data.users.find((u: any) => String(u.UserID) === String(userId));
@@ -593,6 +654,43 @@ app.post("/api/saveDecadeReport", async (req, res) => {
     notifyUsers(usersToNotify, {
       title: "旬報の提出",
       body: `${submitter.Name}が旬報を提出しました。`
+    });
+  }
+
+  res.json({ success: true });
+});
+
+app.post("/api/saveAMStatusReport", async (req, res) => {
+  const gasData = await callGas("saveAMStatusReport", req.body);
+  if (gasData) {
+    invalidateGasCache("Reports");
+    return res.json(gasData);
+  }
+
+  const data = getData();
+  const newReport = {
+    ...req.body,
+    ReportID: Math.random().toString(36).substr(2, 9),
+    SubmittedAt: new Date().toISOString()
+  };
+  if (!data.amStatusReports) data.amStatusReports = [];
+  data.amStatusReports.push(newReport);
+  saveData(data);
+
+  // Notify peers and superiors
+  const submitter = data.users.find((u: any) => String(u.UserID) === String(req.body.UserID));
+  if (submitter) {
+    let notifyRoles: string[] = [];
+    if (submitter.Role === "AM") notifyRoles = ["AM", "BM"];
+    if (submitter.Role === "BM") notifyRoles = ["BM"];
+
+    const usersToNotify = data.users
+      .filter((u: any) => notifyRoles.includes(u.Role) && String(u.UserID) !== String(submitter.UserID))
+      .map((u: any) => String(u.UserID));
+    
+    notifyUsers(usersToNotify, {
+      title: "AM近況報告の提出",
+      body: `${submitter.Name}が近況報告を提出しました。`
     });
   }
 
@@ -811,6 +909,22 @@ app.get("/api/members", async (req, res) => {
     area: u.Area
   }));
   res.json(members);
+});
+
+app.get("/api/notifications", async (req, res) => {
+  const { userId } = req.query;
+  const gasResult = await callGas('getNotifications', { userId }, false);
+  res.json(gasResult || []);
+});
+
+app.post("/api/notifications/read", async (req, res) => {
+  const gasResult = await callGas('markNotificationAsRead', req.body, false);
+  res.json(gasResult || { success: true });
+});
+
+app.post("/api/notifications", async (req, res) => {
+  const gasResult = await callGas('addNotification', req.body, false);
+  res.json(gasResult || { success: true });
 });
 
 app.post("/api/sendNotification", async (req, res) => {

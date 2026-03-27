@@ -1,20 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { User, Member } from "../types";
-import { ChevronLeft, Plus, Trash2, CheckCircle, Circle, Calendar as CalendarIcon, User as UserIcon, Users, Target, FileText, RefreshCw } from "lucide-react";
+import { User, Member, Project, Milestone } from "../types";
+import { ChevronLeft, Plus, Trash2, CheckCircle, Circle, Calendar as CalendarIcon, User as UserIcon, Users, Target, FileText, RefreshCw, Flag } from "lucide-react";
 import { format, parseISO } from "date-fns";
-
-interface Project {
-  ProjectID: string;
-  Assignees: string[];
-  WithWhom: string;
-  StartDate: string;
-  EndDate: string;
-  What: string;
-  Purpose: string;
-  Extent: string;
-  Status: string;
-}
 
 interface ProjectManagementProps {
   user: User;
@@ -26,13 +14,15 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
   const [members, setMembers] = useState<Member[]>([]);
   const [newProject, setNewProject] = useState({
     Assignees: [user.Name],
-    WithWhom: "",
+    WithWhom: [] as string[],
     StartDate: "",
     EndDate: "",
     What: "",
     Purpose: "",
-    Extent: ""
+    Extent: "",
+    Milestones: [] as Milestone[]
   });
+  const [newMilestone, setNewMilestone] = useState({ title: "", date: "" });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,7 +51,13 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
         console.error("GAS error for getProjects:", data.error);
         setProjects([]);
       } else {
-        setProjects(Array.isArray(data) ? data : []);
+        const transformed = (Array.isArray(data) ? data : []).map((p: any) => ({
+          ...p,
+          Assignees: p.Assignee ? p.Assignee.split(", ").filter(Boolean) : [],
+          WithWhom: p.WithWhom ? p.WithWhom.split(", ").filter(Boolean) : [],
+          Milestones: p.Milestones ? JSON.parse(p.Milestones) : []
+        }));
+        setProjects(transformed);
       }
     } catch (error) {
       console.error("Failed to fetch projects", error);
@@ -88,47 +84,61 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          assignees: newProject.Assignees,
-          withWhom: newProject.WithWhom,
+          assignee: newProject.Assignees.join(", "),
+          withWhom: newProject.WithWhom.join(", "),
           startDate: newProject.StartDate,
           endDate: newProject.EndDate,
           what: newProject.What,
           purpose: newProject.Purpose,
           extent: newProject.Extent,
-          status: "pending"
+          status: "pending",
+          milestones: JSON.stringify(newProject.Milestones)
         })
       });
 
       if (res.ok) {
-        // Trigger notifications for all assignees
-        const assigneeIds = newProject.Assignees.map(name => members.find(m => m.name === name)?.id).filter(Boolean);
-        const withWhomMember = members.find(m => m.name === newProject.WithWhom);
+        // Trigger notifications for all assignees and collaborators
+        const allTargetNames = [...new Set([...newProject.Assignees, ...newProject.WithWhom])];
+        const targetIds = allTargetNames.map(name => members.find(m => m.name === name)?.id).filter(Boolean);
         
-        // Send notification to each assignee
-        for (const id of assigneeIds) {
-          await fetch("/api/sendNotification", {
+        for (const id of targetIds) {
+          // Main project notification
+          await fetch("/api/notifications", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              type: "project_added",
-              project: newProject.What,
-              assigneeId: id,
-              withWhom: newProject.WithWhom,
-              withWhomId: withWhomMember?.id,
-              timestamp: new Date().toISOString()
+              userId: id,
+              title: "新規プロジェクト承認",
+              message: `新しいプロジェクト「${newProject.What}」が承認されました。`,
+              type: "info"
             })
           });
+
+          // Milestone notifications
+          for (const m of newProject.Milestones) {
+            await fetch("/api/notifications", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: id,
+                title: "中間期日設定",
+                message: `プロジェクト「${newProject.What}」に中間期日「${m.title}」(${m.date})が設定されました。`,
+                type: "warning"
+              })
+            });
+          }
         }
       }
 
       setNewProject({
         Assignees: [user.Name],
-        WithWhom: "",
+        WithWhom: [] as string[],
         StartDate: "",
         EndDate: "",
         What: "",
         Purpose: "",
-        Extent: ""
+        Extent: "",
+        Milestones: []
       });
       fetchProjects();
     } catch (error) {
@@ -145,6 +155,39 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
         return { ...prev, Assignees: [...prev.Assignees, name] };
       }
     });
+  };
+
+  const toggleWithWhom = (name: string) => {
+    setNewProject(prev => {
+      const isSelected = prev.WithWhom.includes(name);
+      if (isSelected) {
+        return { ...prev, WithWhom: prev.WithWhom.filter(w => w !== name) };
+      } else {
+        return { ...prev, WithWhom: [...prev.WithWhom, name] };
+      }
+    });
+  };
+
+  const addMilestone = () => {
+    if (!newMilestone.title || !newMilestone.date) return;
+    const milestone: Milestone = {
+      id: Date.now().toString(),
+      title: newMilestone.title,
+      date: newMilestone.date,
+      completed: false
+    };
+    setNewProject(prev => ({
+      ...prev,
+      Milestones: [...prev.Milestones, milestone]
+    }));
+    setNewMilestone({ title: "", date: "" });
+  };
+
+  const removeMilestone = (id: string) => {
+    setNewProject(prev => ({
+      ...prev,
+      Milestones: prev.Milestones.filter(m => m.id !== id)
+    }));
   };
 
   const toggleProjectStatus = async (project: Project) => {
@@ -185,7 +228,10 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
           <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">Project Management</p>
         </div>
         <button 
-          onClick={() => fetchProjects(true)}
+          onClick={() => {
+            fetchProjects(true);
+            fetchMembers();
+          }}
           disabled={loading}
           className={`p-2 glass-card rounded-xl text-gray-500 hover:text-neon-orange transition-all active:scale-90 ${loading ? "animate-spin text-neon-orange" : ""}`}
           title="最新の情報に更新"
@@ -233,7 +279,7 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
                   placeholder="担当者を入力..."
                 />
                 <datalist id="assignee-list">
-                  {members.map(m => (
+                  {members.filter(m => m.role === 'AM' || m.role === 'BM').map(m => (
                     <option key={m.id} value={m.name}>{m.role}</option>
                   ))}
                 </datalist>
@@ -255,12 +301,12 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-black/40 border border-white/10 rounded-xl">
-              {members.length === 0 ? (
+              {members.filter(m => m.role === 'AM' || m.role === 'BM').length === 0 ? (
                 <div className="col-span-2 py-4 text-center text-[10px] text-gray-600 italic">
-                  No party members found in spreadsheet. Use the input above to add custom names.
+                  No AM/BM members found in spreadsheet. Use the input above to add custom names.
                 </div>
               ) : (
-                members.map(member => (
+                members.filter(m => m.role === 'AM' || m.role === 'BM').map(member => (
                   <button
                     key={member.id}
                     type="button"
@@ -284,20 +330,117 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
 
           <div>
             <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1 font-display">With Whom (External Collaborators)</label>
-            <div className="relative">
-              <Users size={16} className="absolute left-3 top-3 text-gray-500" />
+            <div className="flex flex-wrap gap-2 mb-3">
+              {newProject.WithWhom.map(name => (
+                <span key={name} className="flex items-center gap-1 px-2 py-1 bg-white/10 border border-white/20 rounded-lg text-[10px] text-gray-300 font-bold">
+                  {name}
+                  <button type="button" onClick={() => toggleWithWhom(name)} className="hover:text-white">×</button>
+                </span>
+              ))}
+              {newProject.WithWhom.length === 0 && <span className="text-[10px] text-gray-600 italic">No external collaborators</span>}
+            </div>
+            <div className="flex gap-2 mb-3">
+              <div className="relative flex-1">
+                <Users size={16} className="absolute left-3 top-3 text-gray-500" />
+                <input
+                  id="project-withwhom-input"
+                  list="member-list"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const val = (e.target as HTMLInputElement).value.trim();
+                      if (val && !newProject.WithWhom.includes(val)) {
+                        setNewProject({ ...newProject, WithWhom: [...newProject.WithWhom, val] });
+                        (e.target as HTMLInputElement).value = '';
+                      }
+                    }
+                  }}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:border-neon-orange outline-none transition-all"
+                  placeholder="協力者を入力..."
+                />
+                <datalist id="member-list">
+                  {members.filter(m => m.role === 'AM' || m.role === 'BM').map(m => (
+                    <option key={m.id} value={m.name}>{m.role}</option>
+                  ))}
+                </datalist>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const input = document.getElementById('project-withwhom-input') as HTMLInputElement;
+                  const val = input.value.trim();
+                  if (val && !newProject.WithWhom.includes(val)) {
+                    setNewProject({ ...newProject, WithWhom: [...newProject.WithWhom, val] });
+                    input.value = '';
+                  }
+                }}
+                className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-gray-300 text-xs font-bold hover:bg-white/20 transition-all"
+              >
+                追加
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-black/40 border border-white/10 rounded-xl">
+              {members.filter(m => m.role === 'AM' || m.role === 'BM').map(member => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => toggleWithWhom(member.name)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left ${
+                    newProject.WithWhom.includes(member.name)
+                      ? "bg-white/20 border-white/40 text-white"
+                      : "bg-white/5 border-white/10 text-gray-400 hover:border-white/30"
+                  }`}
+                >
+                  <Users size={12} />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold">{member.name}</span>
+                    <span className="text-[8px] opacity-60">{member.role}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Milestones Section */}
+          <div className="pt-4 border-t border-white/10">
+            <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-display">Intermediate Deadlines (Milestones)</label>
+            <div className="space-y-2 mb-3">
+              {newProject.Milestones.map(m => (
+                <div key={m.id} className="flex items-center justify-between p-2 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Flag size={12} className="text-neon-orange" />
+                    <span className="text-xs text-white">{m.title}</span>
+                    <span className="text-[10px] text-gray-500 font-digital">{m.date}</span>
+                  </div>
+                  <button type="button" onClick={() => removeMilestone(m.id)} className="text-gray-500 hover:text-neon-red">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              {newProject.Milestones.length === 0 && <p className="text-[10px] text-gray-600 italic">No milestones set</p>}
+            </div>
+            <div className="flex gap-2">
               <input
-                list="member-list"
-                value={newProject.WithWhom}
-                onChange={(e) => setNewProject({ ...newProject, WithWhom: e.target.value })}
-                className="w-full bg-black/40 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:border-neon-orange outline-none transition-all"
-                placeholder="協力者を入力または選択..."
+                type="text"
+                value={newMilestone.title}
+                onChange={(e) => setNewMilestone({ ...newMilestone, title: e.target.value })}
+                placeholder="期日名 (例: 中間報告)"
+                className="flex-1 bg-black/40 border border-white/10 rounded-xl py-2 px-3 text-xs text-white outline-none focus:border-neon-orange"
               />
-              <datalist id="member-list">
-                {members.map(m => (
-                  <option key={m.id} value={m.name}>{m.role}</option>
-                ))}
-              </datalist>
+              <input
+                type="date"
+                value={newMilestone.date}
+                onChange={(e) => setNewMilestone({ ...newMilestone, date: e.target.value })}
+                className="bg-black/40 border border-white/10 rounded-xl py-2 px-3 text-xs text-white outline-none focus:border-neon-orange"
+              />
+              <button
+                type="button"
+                onClick={addMilestone}
+                className="p-2 bg-neon-orange/20 border border-neon-orange rounded-xl neon-text-orange hover:bg-neon-orange/40"
+              >
+                <Plus size={16} />
+              </button>
             </div>
           </div>
           
@@ -410,15 +553,26 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3 text-[10px] text-gray-400 font-digital uppercase tracking-wider">
                   <span className="flex items-center gap-1 col-span-2"><UserIcon size={10} /> {project.Assignees?.join(", ") || "なし"}</span>
-                  <span className="flex items-center gap-1"><Users size={10} /> {project.WithWhom || "なし"}</span>
+                  <span className="flex items-center gap-1"><Users size={10} /> {project.WithWhom?.join(", ") || "なし"}</span>
                   <span className={`flex items-center gap-1 col-span-2 ${project.Status !== "completed" ? "text-neon-orange" : ""}`}>
                     <CalendarIcon size={10} /> {formatDate(project.StartDate)} ~ {formatDate(project.EndDate)}
                   </span>
                 </div>
-                {(project.Purpose || project.Extent) && (
+                {(project.Purpose || project.Extent || (project.Milestones && project.Milestones.length > 0)) && (
                   <div className="mt-3 pt-3 border-t border-white/10 text-[10px] text-gray-400 space-y-1 uppercase tracking-widest">
                     {project.Purpose && <p><span className="text-gray-500">Purpose:</span> {project.Purpose}</p>}
                     {project.Extent && <p><span className="text-gray-500">Criteria:</span> {project.Extent}</p>}
+                    {project.Milestones && project.Milestones.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-neon-orange font-bold">Milestones:</p>
+                        {project.Milestones.map(m => (
+                          <div key={m.id} className="flex items-center gap-2 ml-2">
+                            <Flag size={8} className={m.completed ? "text-green-400" : "text-neon-orange"} />
+                            <span className={m.completed ? "line-through opacity-50" : ""}>{m.title} ({formatDate(m.date)})</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="mt-3 w-full">

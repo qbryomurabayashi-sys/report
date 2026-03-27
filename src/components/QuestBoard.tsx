@@ -1,6 +1,6 @@
 import React from 'react';
-import { Sword, Target, MoreVertical, Calendar, User as UserIcon } from 'lucide-react';
-import { Task, Project } from '../types';
+import { Sword, Target, MoreVertical, Calendar, User as UserIcon, Flag } from 'lucide-react';
+import { Task, Project, Milestone } from '../types';
 import { format, parseISO } from 'date-fns';
 
 interface QuestBoardProps {
@@ -13,6 +13,23 @@ const QuestBoard: React.FC<QuestBoardProps> = ({ tasks, projects }) => {
     { id: 'pending', label: '進行中のクエスト' },
     { id: 'completed', label: '完了済み' },
   ];
+
+  const getProjectColor = (id: string) => {
+    const colors = [
+      { bg: 'bg-neon-orange/20', border: 'border-neon-orange/30', text: 'text-neon-orange', neon: 'neon-text-orange', solid: 'bg-neon-orange' },
+      { bg: 'bg-neon-blue/20', border: 'border-neon-blue/30', text: 'text-neon-blue', neon: 'neon-text-blue', solid: 'bg-neon-blue' },
+      { bg: 'bg-green-400/20', border: 'border-green-400/30', text: 'text-green-400', neon: 'text-green-400', solid: 'bg-green-400' },
+      { bg: 'bg-purple-400/20', border: 'border-purple-400/30', text: 'text-purple-400', neon: 'text-purple-400', solid: 'bg-purple-400' },
+      { bg: 'bg-pink-400/20', border: 'border-pink-400/30', text: 'text-pink-400', neon: 'text-pink-400', solid: 'bg-pink-400' },
+      { bg: 'bg-yellow-400/20', border: 'border-yellow-400/30', text: 'text-yellow-400', neon: 'text-yellow-400', solid: 'bg-yellow-400' },
+    ];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
 
   const getItemsByStatus = (status: string) => {
     const sTasks = tasks.filter(t => t.Status === status);
@@ -57,16 +74,17 @@ const QuestBoard: React.FC<QuestBoardProps> = ({ tasks, projects }) => {
                   <div
                     key={item.type === 'task' ? (item as Task).TaskID : (item as Project).ProjectID}
                     className={`quest-card ${item.type === 'task' ? 'quest-card-task' : 'quest-card-project'}`}
+                    style={item.type === 'project' ? { borderColor: getProjectColor((item as Project).ProjectID).border.split('-')[2].split('/')[0] } : {}}
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-2">
                         {item.type === 'task' ? (
                           <Sword className="w-4 h-4 neon-text-blue" />
                         ) : (
-                          <Target className="w-4 h-4 neon-text-orange" />
+                          <Target className={`w-4 h-4 ${getProjectColor((item as Project).ProjectID).neon}`} />
                         )}
                         <span className={`text-[10px] font-display uppercase tracking-widest ${
-                          item.type === 'task' ? 'neon-text-blue' : 'neon-text-orange'
+                          item.type === 'task' ? 'neon-text-blue' : getProjectColor((item as Project).ProjectID).neon
                         }`}>
                           {item.type}
                         </span>
@@ -86,6 +104,20 @@ const QuestBoard: React.FC<QuestBoardProps> = ({ tasks, projects }) => {
                       {item.type === 'task' ? (item as Task).Content : (item as Project).What}
                     </h4>
 
+                    {item.type === 'project' && (item as Project).Milestones && (item as Project).Milestones!.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {(item as Project).Milestones!.map(m => {
+                          const color = getProjectColor((item as Project).ProjectID);
+                          return (
+                            <div key={m.id} className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${color.bg} border ${color.border}`}>
+                              <Flag size={8} className={color.neon} />
+                              <span className={`text-[8px] ${color.text} font-bold uppercase tracking-tighter`}>{m.title}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between mt-4">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
@@ -96,11 +128,11 @@ const QuestBoard: React.FC<QuestBoardProps> = ({ tasks, projects }) => {
                         </span>
                       </div>
                       {item.type === 'task' && !(item as Task).IsAllDay && (item as Task).Time && (
-                        <span className="text-[10px] text-gray-500 font-digital">{(item as Task).Time}</span>
+                        <span className="text-[10px] text-gray-500 font-digital">{ (item as Task).Time }</span>
                       )}
                       <div className="w-24">
                         <div className="hp-gauge">
-                          <div className={`${item.type === 'task' ? 'hp-gauge-blue' : 'hp-gauge-orange'} w-3/4`} />
+                          <div className={`${item.type === 'task' ? 'hp-gauge-blue' : ''} ${item.type === 'project' ? getProjectColor((item as Project).ProjectID).solid : ''} w-3/4 h-full`} />
                         </div>
                       </div>
                     </div>

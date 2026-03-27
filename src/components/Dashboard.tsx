@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { User, AppState, Task, Project, ViewType, Member } from "../types";
-import { Calendar, ChartLine, Lock, Bell, ChevronRight, Clock, Menu, CheckSquare, FolderKanban, ChevronLeft as ChevronLeftIcon, RefreshCw, Sword, Target, Flag } from "lucide-react";
+import { Calendar, ChartLine, Lock, Bell, ChevronRight, Clock, Menu, CheckSquare, FolderKanban, ChevronLeft as ChevronLeftIcon, RefreshCw, Sword, Target, Flag, MessageSquare } from "lucide-react";
 import { differenceInSeconds, nextSunday, setHours, setMinutes, setSeconds, format, isAfter } from "date-fns";
 import { ja } from "date-fns/locale";
 import { SidebarMenu } from "./SidebarMenu";
@@ -10,6 +10,7 @@ import TeamTimeline from "./TeamTimeline";
 import DeadlineCalendar from "./DeadlineCalendar";
 import WeeklyPlan from "./WeeklyPlan";
 import QuestBoard from "./QuestBoard";
+import { NotificationPanel } from "./NotificationPanel";
 
 interface DashboardProps {
   user: User;
@@ -48,7 +49,13 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
         headers: { 'Cache-Control': 'no-cache' }
       });
       const projectsData = await projectsRes.json();
-      setProjects(Array.isArray(projectsData) ? projectsData : []);
+      const transformedProjects = (Array.isArray(projectsData) ? projectsData : []).map((p: any) => ({
+        ...p,
+        Assignees: p.Assignee ? p.Assignee.split(", ").filter(Boolean) : [],
+        WithWhom: p.WithWhom ? p.WithWhom.split(", ").filter(Boolean) : [],
+        Milestones: p.Milestones && p.Milestones !== "" ? JSON.parse(p.Milestones) : []
+      }));
+      setProjects(transformedProjects);
 
       const membersRes = await fetch("/api/members");
       const membersData = await membersRes.json();
@@ -144,12 +151,14 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
 
   return (
     <div className="container mx-auto px-4 pt-8 pb-24 max-w-4xl">
+      <NotificationPanel user={user} />
       <SidebarMenu 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
         user={user} 
         onLogout={onLogout} 
         onOpenPinModal={onOpenPinModal} 
+        onNavigate={onNavigate}
       />
       
       {/* Time Circuit Countdown */}
@@ -274,22 +283,41 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
         )}
 
         {user.Role === "AM" && (
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onNavigate("decade_form")}
-            className="glass-card p-6 rounded-2xl flex items-center justify-between group hover:border-neon-orange transition-all"
-          >
-            <div className="flex items-center gap-6">
-              <div className="p-4 bg-neon-orange/10 rounded-xl text-neon-orange group-hover:bg-neon-orange group-hover:text-black transition-all">
-                <ChartLine size={24} />
+          <>
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onNavigate("decade_form")}
+              className="glass-card p-6 rounded-2xl flex items-center justify-between group hover:border-neon-orange transition-all"
+            >
+              <div className="flex items-center gap-6">
+                <div className="p-4 bg-neon-orange/10 rounded-xl text-neon-orange group-hover:bg-neon-orange group-hover:text-black transition-all">
+                  <ChartLine size={24} />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-bold text-lg group-hover:text-neon-orange transition-all">旬報を書く</h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">AM用：10日ごとの報告</p>
+                </div>
               </div>
-              <div className="text-left">
-                <h3 className="font-bold text-lg group-hover:text-neon-orange transition-all">旬報を書く</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">AM用：10日ごとの報告</p>
+              <ChevronRight size={20} className="text-gray-700 group-hover:text-neon-orange transition-all" />
+            </motion.button>
+
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onNavigate("am_status_form")}
+              className="glass-card p-6 rounded-2xl flex items-center justify-between group hover:border-neon-orange transition-all mt-4"
+            >
+              <div className="flex items-center gap-6">
+                <div className="p-4 bg-neon-orange/10 rounded-xl text-neon-orange group-hover:bg-neon-orange group-hover:text-black transition-all">
+                  <MessageSquare size={24} />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-bold text-lg group-hover:text-neon-orange transition-all">近況報告を書く</h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">AM用：日々の近況報告</p>
+                </div>
               </div>
-            </div>
-            <ChevronRight size={20} className="text-gray-700 group-hover:text-neon-orange transition-all" />
-          </motion.button>
+              <ChevronRight size={20} className="text-gray-700 group-hover:text-neon-orange transition-all" />
+            </motion.button>
+          </>
         )}
 
         {(user.Role === "AM" || user.Role === "BM") && (

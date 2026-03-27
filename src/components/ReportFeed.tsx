@@ -8,7 +8,7 @@ interface ReportFeedProps {
   onBack: () => void;
 }
 
-type ReportType = "weekly" | "decade";
+type ReportType = "weekly" | "decade" | "am_status";
 
 export function ReportFeed({ user, onBack }: ReportFeedProps) {
   const [reportType, setReportType] = useState<ReportType>("weekly");
@@ -24,7 +24,11 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
     setIsLoading(true);
     setError("");
     try {
-      const endpoint = reportType === "weekly" ? "/api/weeklyReports" : "/api/decadeReports";
+      let endpoint = "";
+      if (reportType === "weekly") endpoint = "/api/weeklyReports";
+      else if (reportType === "decade") endpoint = "/api/decadeReports";
+      else if (reportType === "am_status") endpoint = "/api/amStatusReports";
+
       const response = await fetch(`${endpoint}?userId=${user.UserID}&role=${user.Role}&area=${encodeURIComponent(user.Area || "")}${refresh ? "&refresh=true" : ""}`, {
         headers: { 'Cache-Control': 'no-cache' }
       });
@@ -230,6 +234,12 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
           >
             AMの旬報
           </button>
+          <button
+            onClick={() => setReportType("am_status")}
+            className={`flex-1 py-3 rounded-lg text-[10px] font-digital uppercase tracking-widest transition-all ${reportType === "am_status" ? "bg-neon-green text-black shadow-[0_0_15px_rgba(0,255,102,0.4)]" : "text-gray-500 hover:text-gray-300"}`}
+          >
+            AMの近況
+          </button>
         </div>
       )}
 
@@ -363,13 +373,13 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                           : report.TargetDecade}
                       </span>
                     </div>
-                    <span className={`text-[8px] font-digital uppercase tracking-widest px-2 py-0.5 rounded border ${isMine ? "border-neon-green/30 text-neon-green/70" : reportType === "weekly" ? "border-neon-blue/30 text-neon-blue/70" : "border-neon-orange/30 text-neon-orange/70"}`}>
-                      {reportType === "weekly" ? "Weekly" : "Decade"}
+                    <span className={`text-[8px] font-digital uppercase tracking-widest px-2 py-0.5 rounded border ${isMine ? "border-neon-green/30 text-neon-green/70" : reportType === "weekly" ? "border-neon-blue/30 text-neon-blue/70" : reportType === "decade" ? "border-neon-orange/30 text-neon-orange/70" : "border-neon-green/30 text-neon-green/70"}`}>
+                      {reportType === "weekly" ? "Weekly" : reportType === "decade" ? "Decade" : "AM Status"}
                     </span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 line-clamp-1">
-                  {reportType === "weekly" ? report.Goal : report.AreaFact}
+                  {reportType === "weekly" ? report.Goal : reportType === "decade" ? report.AreaFact : report.textAreaSummary || "近況報告"}
                 </p>
                 
                 {/* Interaction Summary */}
@@ -414,23 +424,23 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1 text-[10px] font-digital text-gray-500">
-                      <MessageSquare size={12} className="text-gray-700" />
-                      <span>{report.Comments?.length || 0}</span>
-                    </div>
-                  )}
+                      <div className="flex items-center gap-1 text-[10px] font-digital text-gray-500">
+                        <MessageSquare size={12} className="text-gray-700" />
+                        <span>{report.Comments?.length || 0}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <AnimatePresence>
-                {selectedReport?.ReportID === report.ReportID && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="px-6 pb-6 pt-2 border-t border-white/5 space-y-6"
-                  >
-                    {reportType === "weekly" ? (
+                <AnimatePresence>
+                  {selectedReport?.ReportID === report.ReportID && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="px-6 pb-6 pt-2 border-t border-white/5 space-y-6"
+                    >
+                      {reportType === "weekly" ? (
                       <div className="space-y-6 text-sm">
                         <div className="p-4 rounded-xl bg-neon-blue/5 border border-neon-blue/20">
                           <h4 className="text-[10px] text-neon-blue font-digital uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -543,7 +553,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                         </div>
                       )}
                     </div>
-                  ) : (
+                  ) : reportType === "decade" ? (
                       <div className="space-y-6">
                         <div className="space-y-4 text-sm">
                           <section>
@@ -595,6 +605,42 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                             </button>
                           </div>
                         )}
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="space-y-4 text-sm">
+                          <section>
+                            <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-1">エリアのビジョン・目標</label>
+                            <p className="whitespace-pre-wrap text-gray-200">{report.textAreaVision || "未入力"}</p>
+                          </section>
+                          <section>
+                            <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-1">総括</label>
+                            <p className="whitespace-pre-wrap text-gray-200">{report.textAreaSummary || "未入力"}</p>
+                          </section>
+                          <section>
+                            <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-1">店長のコンディション</label>
+                            <p className="whitespace-pre-wrap text-gray-200">{report.textManagerCondition || "未入力"}</p>
+                          </section>
+                          {report.textOtherTopics && (
+                            <section>
+                              <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-1">その他トピックス</label>
+                              <p className="whitespace-pre-wrap text-gray-200">{report.textOtherTopics}</p>
+                            </section>
+                          )}
+                          {report.storeReports && report.storeReports.length > 0 && (
+                            <section>
+                              <label className="text-[10px] text-neon-blue font-digital uppercase tracking-widest block mb-2 mt-4 border-t border-white/10 pt-4">店舗別報告 ({report.storeReports.length}店舗)</label>
+                              <div className="space-y-2">
+                                {report.storeReports.map((store: any, idx: number) => (
+                                  <div key={idx} className="bg-white/5 p-3 rounded-lg border border-white/10">
+                                    <h5 className="text-xs font-bold text-neon-blue mb-1">{store.storeName}</h5>
+                                    <p className="text-[10px] text-gray-400 line-clamp-2">{store.textThisMonthFocus || "注力ポイント未入力"}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </section>
+                          )}
+                        </div>
                       </div>
                     )}
 

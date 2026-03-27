@@ -4,10 +4,13 @@ import { Login } from "./components/Login";
 import { Dashboard } from "./components/Dashboard";
 import { WeeklyForm } from "./components/WeeklyForm";
 import { DecadeForm } from "./components/DecadeForm";
+import { AMStatusForm } from "./components/AMStatusForm";
 import { ReportFeed } from "./components/ReportFeed";
 import { PinModal } from "./components/PinModal";
 import { TaskManagement } from "./components/TaskManagement";
 import { ProjectManagement } from "./components/ProjectManagement";
+import { Settings } from "./components/Settings";
+import { VersionInfo } from "./components/VersionInfo";
 import { User, AppState } from "./types";
 
 // Helper for web push
@@ -145,6 +148,12 @@ export default function App() {
               onBack={() => setAppState("dashboard")} 
             />
           )}
+          {appState === "am_status_form" && (
+            <AMStatusForm 
+              user={currentUser} 
+              onBack={() => setAppState("dashboard")} 
+            />
+          )}
           {appState === "report_feed" && (
             <ReportFeed 
               user={currentUser} 
@@ -159,6 +168,20 @@ export default function App() {
           )}
           {appState === "project_management" && (
             <ProjectManagement 
+              user={currentUser} 
+              onBack={() => setAppState("dashboard")} 
+            />
+          )}
+
+          {appState === "settings" && (
+            <Settings 
+              user={currentUser} 
+              onBack={() => setAppState("dashboard")} 
+            />
+          )}
+
+          {appState === "version_info" && (
+            <VersionInfo 
               user={currentUser} 
               onBack={() => setAppState("dashboard")} 
             />

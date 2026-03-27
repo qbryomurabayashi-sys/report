@@ -1,6 +1,6 @@
 import React from 'react';
-import { Sword, Target, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Task, Project } from '../types';
+import { Sword, Target, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
+import { Task, Project, Milestone } from '../types';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isWithinInterval } from 'date-fns';
 
 interface DeadlineCalendarProps {
@@ -29,8 +29,25 @@ const DeadlineCalendar: React.FC<DeadlineCalendarProps> = ({ tasks, projects }) 
       } catch (e) {
         return p.EndDate.startsWith(dayStr);
       }
-    });
+    }).sort((a, b) => a.ProjectID.localeCompare(b.ProjectID));
     return { tasks: dayTasks, projects: dayProjects };
+  };
+
+  const getProjectColor = (id: string) => {
+    const colors = [
+      { bg: 'bg-neon-orange/20', border: 'border-neon-orange/30', text: 'text-neon-orange', neon: 'neon-text-orange', solid: 'bg-neon-orange' },
+      { bg: 'bg-neon-blue/20', border: 'border-neon-blue/30', text: 'text-neon-blue', neon: 'neon-text-blue', solid: 'bg-neon-blue' },
+      { bg: 'bg-green-400/20', border: 'border-green-400/30', text: 'text-green-400', neon: 'text-green-400', solid: 'bg-green-400' },
+      { bg: 'bg-purple-400/20', border: 'border-purple-400/30', text: 'text-purple-400', neon: 'text-purple-400', solid: 'bg-purple-400' },
+      { bg: 'bg-pink-400/20', border: 'border-pink-400/30', text: 'text-pink-400', neon: 'text-pink-400', solid: 'bg-pink-400' },
+      { bg: 'bg-yellow-400/20', border: 'border-yellow-400/30', text: 'text-yellow-400', neon: 'text-yellow-400', solid: 'bg-yellow-400' },
+    ];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
   };
 
   return (
@@ -82,12 +99,52 @@ const DeadlineCalendar: React.FC<DeadlineCalendarProps> = ({ tasks, projects }) 
                 </span>
               </div>
               <div className="flex flex-col gap-1">
-                {dProjects.map(p => (
-                  <div key={p.ProjectID} className="flex items-center gap-1 px-1 py-0.5 rounded bg-neon-orange/10 border border-neon-orange/20">
-                    <Target className="w-2.5 h-2.5 neon-text-orange flex-shrink-0" />
-                    <span className="text-[9px] text-neon-orange truncate font-bold uppercase tracking-tighter">{p.What}</span>
-                  </div>
-                ))}
+                {dProjects.map(p => {
+                  let isStart = false;
+                  let isEnd = false;
+                  try {
+                    isStart = isSameDay(day, parseISO(p.StartDate));
+                    isEnd = isSameDay(day, parseISO(p.EndDate));
+                  } catch (e) {
+                    const dayStr = format(day, 'yyyy-MM-dd');
+                    isStart = p.StartDate.startsWith(dayStr);
+                    isEnd = p.EndDate.startsWith(dayStr);
+                  }
+                  
+                  const isMonday = format(day, 'EEE') === 'Mon';
+                  const isSunday = format(day, 'EEE') === 'Sun';
+                  const showLabel = isStart || isMonday;
+                  
+                  const dayStr = format(day, 'yyyy-MM-dd');
+                  const dayMilestones = p.Milestones?.filter(m => m.date === dayStr) || [];
+                  const color = getProjectColor(p.ProjectID);
+
+                  return (
+                    <div 
+                      key={p.ProjectID} 
+                      className={`
+                        flex items-center gap-1 px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter
+                        ${color.bg} border-y ${color.border}
+                        ${isStart || isMonday ? 'rounded-l border-l ml-0' : '-ml-2 border-l-0'}
+                        ${isEnd || isSunday ? 'rounded-r border-r mr-0' : '-mr-2 border-r-0'}
+                        z-10 relative h-5
+                      `}
+                    >
+                      {showLabel && (
+                        <>
+                          <Target className={`w-2.5 h-2.5 ${color.neon} flex-shrink-0`} />
+                          <span className={`${color.text} truncate`}>{p.What}</span>
+                        </>
+                      )}
+                      {dayMilestones.length > 0 && (
+                        <div className={`absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 ${color.solid} px-1 rounded-sm shadow-[0_0_8px_rgba(255,255,255,0.4)] z-20`}>
+                          <Flag size={8} className="text-black" />
+                          <span className="text-[7px] text-black font-bold whitespace-nowrap">{dayMilestones[0].title}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 {dTasks.map(t => (
                   <div key={t.TaskID} className="flex flex-col gap-0.5 px-1 py-0.5 rounded bg-neon-blue/10 border border-neon-blue/20">
                     <div className="flex items-center gap-1">

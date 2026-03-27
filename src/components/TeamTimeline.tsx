@@ -1,6 +1,6 @@
 import React from 'react';
-import { Sword, Target, User as UserIcon } from 'lucide-react';
-import { Task, Project, Member } from '../types';
+import { Sword, Target, User as UserIcon, Flag } from 'lucide-react';
+import { Task, Project, Member, Milestone } from '../types';
 import { format, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
 
 interface TeamTimelineProps {
@@ -21,6 +21,25 @@ const TeamTimeline: React.FC<TeamTimelineProps> = ({ tasks, projects, members })
     );
     return { tasks: memberTasks, projects: memberProjects };
   };
+
+  const getProjectColor = (id: string) => {
+    const colors = [
+      { bg: 'bg-neon-orange/20', border: 'border-neon-orange/30', text: 'text-neon-orange', neon: 'neon-text-orange', solid: 'bg-neon-orange' },
+      { bg: 'bg-neon-blue/20', border: 'border-neon-blue/30', text: 'text-neon-blue', neon: 'neon-text-blue', solid: 'bg-neon-blue' },
+      { bg: 'bg-green-400/20', border: 'border-green-400/30', text: 'text-green-400', neon: 'text-green-400', solid: 'bg-green-400' },
+      { bg: 'bg-purple-400/20', border: 'border-purple-400/30', text: 'text-purple-400', neon: 'text-purple-400', solid: 'bg-purple-400' },
+      { bg: 'bg-pink-400/20', border: 'border-pink-400/30', text: 'text-pink-400', neon: 'text-pink-400', solid: 'bg-pink-400' },
+      { bg: 'bg-yellow-400/20', border: 'border-yellow-400/30', text: 'text-yellow-400', neon: 'text-yellow-400', solid: 'bg-yellow-400' },
+    ];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
+  const filteredMembers = members.filter(m => m.role !== "店長");
 
   return (
     <div className="glass-card rounded-2xl overflow-hidden">
@@ -44,19 +63,19 @@ const TeamTimeline: React.FC<TeamTimelineProps> = ({ tasks, projects, members })
             </tr>
           </thead>
           <tbody>
-            {members.map(member => {
+            {filteredMembers.map(member => {
               const { tasks: mTasks, projects: mProjects } = getMemberItems(member.name);
               return (
                 <tr key={member.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                   <td className="sticky left-0 z-20 bg-dark-bg p-4 border-r border-white/10">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-neon-blue/20 flex items-center justify-center border border-neon-blue/30">
-                        <UserIcon className="w-5 h-5 neon-text-blue" />
+                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                        <UserIcon className="w-5 h-5 text-gray-400" />
                       </div>
                       <div>
                         <div className="font-bold text-sm">{member.name}</div>
                         <div className="text-[10px] uppercase tracking-widest text-gray-500 flex items-center gap-1">
-                          <span className="px-1 bg-neon-orange/20 text-neon-orange rounded border border-neon-orange/30">
+                          <span className="px-1 bg-white/10 text-gray-400 rounded border border-white/20">
                             {member.role}
                           </span>
                           <span>{member.area}</span>
@@ -77,24 +96,40 @@ const TeamTimeline: React.FC<TeamTimelineProps> = ({ tasks, projects, members })
                       }
                     });
 
+                    const dayMilestones = mProjects.flatMap(p => 
+                      (p.Milestones || []).filter(m => m.date === dayStr).map(m => ({ ...m, projectWhat: p.What, projectId: p.ProjectID }))
+                    );
+
                     return (
                       <td key={day.toISOString()} className="p-2 border-r border-white/5 relative h-24">
                         <div className="flex flex-col gap-1">
-                          {dayProjects.map(p => (
-                            <div key={p.ProjectID} className="group relative">
-                              <div className="hp-gauge w-full">
-                                <div className="hp-gauge-orange w-full" />
+                          {dayProjects.map(p => {
+                            const color = getProjectColor(p.ProjectID);
+                            return (
+                              <div key={p.ProjectID} className="group relative">
+                                <div className={`hp-gauge w-full ${color.bg}`}>
+                                  <div className={`${color.solid} w-full h-full opacity-50`} />
+                                </div>
+                                <div className={`absolute -top-1 left-0 flex items-center gap-1 scale-75 origin-left opacity-0 group-hover:opacity-100 transition-opacity bg-dark-bg px-1 rounded border ${color.border} z-30`}>
+                                  <Target className={`w-3 h-3 ${color.neon}`} />
+                                  <span className={`text-[8px] ${color.text} whitespace-nowrap`}>{p.What}</span>
+                                </div>
                               </div>
-                              <div className="absolute -top-1 left-0 flex items-center gap-1 scale-75 origin-left opacity-0 group-hover:opacity-100 transition-opacity bg-dark-bg px-1 rounded border border-neon-orange/30 z-30">
-                                <Target className="w-3 h-3 neon-text-orange" />
-                                <span className="text-[8px] text-neon-orange whitespace-nowrap">{p.What}</span>
+                            );
+                          })}
+                          {dayMilestones.map(m => {
+                            const color = getProjectColor(m.projectId);
+                            return (
+                              <div key={m.id} className={`flex items-center gap-1 ${color.bg} border ${color.border} rounded px-1 py-0.5 shadow-[0_0_8px_rgba(255,255,255,0.2)]`}>
+                                <Flag size={10} className={color.neon} />
+                                <span className={`text-[8px] ${color.text} font-bold truncate max-w-[60px]`}>{m.title}</span>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                           {dayTasks.map(t => (
                             <div key={t.TaskID} className="group relative">
-                              <div className="hp-gauge w-full">
-                                <div className="hp-gauge-blue w-full" />
+                              <div className="hp-gauge w-full bg-neon-blue/10">
+                                <div className="bg-neon-blue w-full h-full opacity-50" />
                               </div>
                               <div className="absolute -top-1 left-0 flex flex-col scale-75 origin-left opacity-0 group-hover:opacity-100 transition-opacity bg-dark-bg px-1 rounded border border-neon-blue/30 z-30">
                                 <div className="flex items-center gap-1">

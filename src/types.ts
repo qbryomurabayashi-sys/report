@@ -17,16 +17,24 @@ export interface Task {
   Status: string;
 }
 
+export interface Milestone {
+  id: string;
+  title: string;
+  date: string;
+  completed: boolean;
+}
+
 export interface Project {
   ProjectID: string;
   Assignees: string[];
-  WithWhom: string;
+  WithWhom: string[];
   StartDate: string;
   EndDate: string;
   What: string;
   Purpose: string;
   Extent: string;
   Status: string;
+  Milestones?: Milestone[];
 }
 
 export interface Member {
@@ -38,4 +46,4 @@ export interface Member {
 
 export type ViewType = "Team" | "Calendar" | "Weekly" | "Board";
 
-export type AppState = "loading" | "login" | "dashboard" | "weekly_form" | "decade_form" | "report_feed" | "task_management" | "project_management";
+export type AppState = "loading" | "login" | "dashboard" | "weekly_form" | "decade_form" | "am_status_form" | "report_feed" | "task_management" | "project_management" | "settings" | "version_info";

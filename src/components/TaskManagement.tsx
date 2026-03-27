@@ -152,7 +152,10 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
           <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">Task Management</p>
         </div>
         <button 
-          onClick={() => fetchTasks(true)}
+          onClick={() => {
+            fetchTasks(true);
+            fetchMembers();
+          }}
           disabled={loading}
           className={`p-2 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all active:scale-90 ${loading ? "animate-spin text-neon-blue" : ""}`}
           title="最新の情報に更新"
@@ -200,7 +203,7 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
                   placeholder="担当者を入力..."
                 />
                 <datalist id="task-assignee-list">
-                  {members.map(m => (
+                  {members.filter(m => m.role === 'AM' || m.role === 'BM').map(m => (
                     <option key={m.id} value={m.name}>{m.role}</option>
                   ))}
                 </datalist>
@@ -222,12 +225,12 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-black/40 border border-white/10 rounded-xl">
-              {members.length === 0 ? (
+              {members.filter(m => m.role === 'AM' || m.role === 'BM').length === 0 ? (
                 <div className="col-span-2 py-4 text-center text-[10px] text-gray-600 italic">
-                  No party members found in spreadsheet. Use the input above to add custom names.
+                  No AM/BM members found in spreadsheet. Use the input above to add custom names.
                 </div>
               ) : (
-                members.map(member => (
+                members.filter(m => m.role === 'AM' || m.role === 'BM').map(member => (
                   <button
                     key={member.id}
                     type="button"
