@@ -33,97 +33,121 @@ function getOrCreateSheet(ss, sheetName, headers) {
 }
 
 function handleSaveAMStatusReport(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let ss;
+  try {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      // Fallback: Try to open the first spreadsheet the user has access to, 
+      // or throw a clear error if this is a standalone script not bound to a sheet.
+      throw new Error("スプレッドシートが見つかりません。スクリプトがスプレッドシートに紐付いているか確認してください。");
+    }
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: false, 
+      message: "Spreadsheet Access Error: " + e.toString(),
+      details: "Google Apps Scriptをスプレッドシートの『拡張機能 > Apps Script』から作成したか確認してください。"
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   const reportId = Utilities.getUuid();
   const timestamp = new Date();
   
-  // 1. Save Main Report Data
-  const mainHeaders = ["ReportID", "Timestamp", "UserID", "UserName", "UserArea", "AreaVision", "AreaSummary", "ManagerCondition", "OtherTopics"];
-  const mainSheet = getOrCreateSheet(ss, "AMStatusReports", mainHeaders);
-  
-  mainSheet.appendRow([
-    reportId,
-    timestamp,
-    data.UserID || "",
-    data.UserName || "",
-    data.UserArea || "",
-    data.textAreaVision || "",
-    data.textAreaSummary || "",
-    data.textManagerCondition || "",
-    data.textOtherTopics || ""
-  ]);
-
-  // 2. Save Store Reports
-  if (data.storeReports && data.storeReports.length > 0) {
-    const storeHeaders = ["ReportID", "Timestamp", "UserID", "StoreName", "LastMonthGoals", "LastMonthResults", "ThisMonthGoals", "ThisMonthFocus", "Promo", "Facility", "SalesPrevious", "SalesCurrent", "SalesBudget", "StaffStore"];
-    const storeSheet = getOrCreateSheet(ss, "AMStatus_StoreReports", storeHeaders);
+  try {
+    // 1. Save Main Report Data
+    const mainHeaders = ["ReportID", "Timestamp", "UserID", "UserName", "UserArea", "AreaVision", "AreaSummary", "ManagerCondition", "OtherTopics"];
+    const mainSheet = getOrCreateSheet(ss, "AMStatusReports", mainHeaders);
     
-    const storeRows = data.storeReports.map(store => [
+    mainSheet.appendRow([
       reportId,
       timestamp,
       data.UserID || "",
-      store.storeName || "",
-      store.textLastMonthGoals || "",
-      store.textLastMonthResults || "",
-      store.textThisMonthGoals || "",
-      store.textThisMonthFocus || "",
-      store.textPromo || "",
-      store.textFacility || "",
-      store.textSalesPrevious || "",
-      store.textSalesCurrent || "",
-      store.textSalesBudget || "",
-      store.textStaffStore || ""
+      data.UserName || "",
+      data.UserArea || "",
+      data.textAreaVision || "",
+      data.textAreaSummary || "",
+      data.textManagerCondition || "",
+      data.textOtherTopics || ""
     ]);
-    
-    storeSheet.getRange(storeSheet.getLastRow() + 1, 1, storeRows.length, storeHeaders.length).setValues(storeRows);
-  }
 
-  // 3. Save HR Events
-  if (data.hrEvents && data.hrEvents.length > 0) {
-    const hrHeaders = ["ReportID", "Timestamp", "UserID", "EventType", "Date", "StoreName", "PersonName", "Details"];
-    const hrSheet = getOrCreateSheet(ss, "AMStatus_HREvents", hrHeaders);
-    
-    const hrRows = data.hrEvents.map(event => [
-      reportId,
-      timestamp,
-      data.UserID || "",
-      event.type || "",
-      event.date || "",
-      event.store || "",
-      event.name || "",
-      event.details || ""
-    ]);
-    
-    hrSheet.getRange(hrSheet.getLastRow() + 1, 1, hrRows.length, hrHeaders.length).setValues(hrRows);
-  }
+    // 2. Save Store Reports
+    if (data.storeReports && data.storeReports.length > 0) {
+      const storeHeaders = ["ReportID", "Timestamp", "UserID", "StoreName", "LastMonthGoals", "LastMonthResults", "ThisMonthGoals", "ThisMonthFocus", "Promo", "Facility", "SalesPrevious", "SalesCurrent", "SalesBudget", "StaffStore"];
+      const storeSheet = getOrCreateSheet(ss, "AMStatus_StoreReports", storeHeaders);
+      
+      const storeRows = data.storeReports.map(store => [
+        reportId,
+        timestamp,
+        data.UserID || "",
+        store.storeName || "",
+        store.textLastMonthGoals || "",
+        store.textLastMonthResults || "",
+        store.textThisMonthGoals || "",
+        store.textThisMonthFocus || "",
+        store.textPromo || "",
+        store.textFacility || "",
+        store.textSalesPrevious || "",
+        store.textSalesCurrent || "",
+        store.textSalesBudget || "",
+        store.textStaffStore || ""
+      ]);
+      
+      storeSheet.getRange(storeSheet.getLastRow() + 1, 1, storeRows.length, storeHeaders.length).setValues(storeRows);
+    }
 
-  // 4. Save Interview Events
-  if (data.interviewEvents && data.interviewEvents.length > 0) {
-    const interviewHeaders = ["ReportID", "Timestamp", "UserID", "Date", "Importance", "StoreName", "PersonName", "Interviewer", "InterviewType", "Status", "ContentMain", "ContentConcerns", "ContentNextAction", "ContentImpression"];
-    const interviewSheet = getOrCreateSheet(ss, "AMStatus_InterviewEvents", interviewHeaders);
-    
-    const interviewRows = data.interviewEvents.map(event => [
-      reportId,
-      timestamp,
-      data.UserID || "",
-      event.date || "",
-      event.importance || "",
-      event.store || "",
-      event.name || "",
-      event.interviewer || "",
-      event.interviewType || "",
-      event.status || "",
-      event.contentMain || "",
-      event.contentConcerns || "",
-      event.contentNextAction || "",
-      event.contentImpression || ""
-    ]);
-    
-    interviewSheet.getRange(interviewSheet.getLastRow() + 1, 1, interviewRows.length, interviewHeaders.length).setValues(interviewRows);
-  }
+    // 3. Save HR Events
+    if (data.hrEvents && data.hrEvents.length > 0) {
+      const hrHeaders = ["ReportID", "Timestamp", "UserID", "EventType", "Date", "StoreName", "PersonName", "Details"];
+      const hrSheet = getOrCreateSheet(ss, "AMStatus_HREvents", hrHeaders);
+      
+      const hrRows = data.hrEvents.map(event => [
+        reportId,
+        timestamp,
+        data.UserID || "",
+        event.type || "",
+        event.date || "",
+        event.store || "",
+        event.name || "",
+        event.details || ""
+      ]);
+      
+      hrSheet.getRange(hrSheet.getLastRow() + 1, 1, hrRows.length, hrHeaders.length).setValues(hrRows);
+    }
 
-  return ContentService.createTextOutput(JSON.stringify({ success: true, reportId: reportId }))
-    .setMimeType(ContentService.MimeType.JSON);
+    // 4. Save Interview Events
+    if (data.interviewEvents && data.interviewEvents.length > 0) {
+      const interviewHeaders = ["ReportID", "Timestamp", "UserID", "Date", "Importance", "StoreName", "PersonName", "Interviewer", "InterviewType", "Status", "ContentMain", "ContentConcerns", "ContentNextAction", "ContentImpression"];
+      const interviewSheet = getOrCreateSheet(ss, "AMStatus_InterviewEvents", interviewHeaders);
+      
+      const interviewRows = data.interviewEvents.map(event => [
+        reportId,
+        timestamp,
+        data.UserID || "",
+        event.date || "",
+        event.importance || "",
+        event.store || "",
+        event.name || "",
+        event.interviewer || "",
+        event.interviewType || "",
+        event.status || "",
+        event.contentMain || "",
+        event.contentConcerns || "",
+        event.contentNextAction || "",
+        event.contentImpression || ""
+      ]);
+      
+      interviewSheet.getRange(interviewSheet.getLastRow() + 1, 1, interviewRows.length, interviewHeaders.length).setValues(interviewRows);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ success: true, reportId: reportId }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: false, 
+      message: "Data Save Error: " + error.toString(),
+      details: "スプレッドシートの権限や、シート名の重複などを確認してください。"
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function handleGetAMStatusReports(data) {
