@@ -13,7 +13,7 @@ import {
   History,
   AlertCircle
 } from "lucide-react";
-import { User } from "../App";
+import { User } from "../types";
 
 interface SidebarMenuProps {
   isOpen: boolean;

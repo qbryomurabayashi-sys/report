@@ -206,6 +206,19 @@ app.delete('/api/projects/:id', async (c) => {
   return c.json(data || { success: false });
 });
 
+app.get('/api/members', async (c) => {
+  const envGasUrl = c.env.GAS_URL;
+  const data = await callGas(envGasUrl, "getMembers");
+  return c.json(data || []);
+});
+
+app.post('/api/sendNotification', async (c) => {
+  const envGasUrl = c.env.GAS_URL;
+  const body = await c.req.json();
+  const data = await callGas(envGasUrl, "sendNotification", body);
+  return c.json(data || { success: false });
+});
+
 app.get('/api/debug', (c) => {
   const envGasUrl = c.env.GAS_URL;
   const gasUrl = envGasUrl || FALLBACK_GAS_URL;

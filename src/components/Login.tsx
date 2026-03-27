@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { User, Role } from "../App";
+import { User } from "../types";
 
 interface LoginProps {
   onLogin: (user: User) => void;

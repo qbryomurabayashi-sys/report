@@ -8,17 +8,7 @@ import { ReportFeed } from "./components/ReportFeed";
 import { PinModal } from "./components/PinModal";
 import { TaskManagement } from "./components/TaskManagement";
 import { ProjectManagement } from "./components/ProjectManagement";
-
-export type Role = "店長" | "AM" | "BM";
-
-export interface User {
-  UserID: string;
-  Name: string;
-  Role: Role;
-  Area: string;
-}
-
-export type AppState = "loading" | "login" | "dashboard" | "weekly_form" | "decade_form" | "report_feed" | "task_management" | "project_management";
+import { User, AppState } from "./types";
 
 // Helper for web push
 function urlBase64ToUint8Array(base64String: string) {

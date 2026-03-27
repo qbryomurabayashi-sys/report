@@ -1,30 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { User, AppState } from "../App";
-import { Calendar, ChartLine, Lock, Bell, ChevronRight, Clock, Menu, CheckSquare, FolderKanban, ChevronLeft as ChevronLeftIcon, RefreshCw } from "lucide-react";
-import { differenceInSeconds, nextSunday, setHours, setMinutes, setSeconds, format, isAfter, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from "date-fns";
+import { User, AppState, Task, Project, ViewType, Member } from "../types";
+import { Calendar, ChartLine, Lock, Bell, ChevronRight, Clock, Menu, CheckSquare, FolderKanban, ChevronLeft as ChevronLeftIcon, RefreshCw, Sword, Target, Flag } from "lucide-react";
+import { differenceInSeconds, nextSunday, setHours, setMinutes, setSeconds, format, isAfter } from "date-fns";
 import { ja } from "date-fns/locale";
 import { SidebarMenu } from "./SidebarMenu";
-
-interface Task {
-  TaskID: string;
-  Assignee: string;
-  Deadline: string;
-  Content: string;
-  Status: string;
-}
-
-interface Project {
-  ProjectID: string;
-  Assignee: string;
-  WithWhom: string;
-  StartDate: string;
-  EndDate: string;
-  What: string;
-  Purpose: string;
-  Extent: string;
-  Status: string;
-}
+import ViewSwitcher from "./ViewSwitcher";
+import TeamTimeline from "./TeamTimeline";
+import DeadlineCalendar from "./DeadlineCalendar";
+import WeeklyPlan from "./WeeklyPlan";
+import QuestBoard from "./QuestBoard";
 
 interface DashboardProps {
   user: User;
@@ -39,10 +24,8 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showTaskDetails, setShowTaskDetails] = useState(false);
-  const [showProjectDetails, setShowProjectDetails] = useState(false);
-  const [viewDate, setViewDate] = useState(new Date());
+  const [members, setMembers] = useState<Member[]>([]);
+  const [currentView, setCurrentView] = useState<ViewType>("Board");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [gasStatus, setGasStatus] = useState<{ configured: boolean, error: boolean }>({ configured: false, error: false });
@@ -66,6 +49,10 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
       });
       const projectsData = await projectsRes.json();
       setProjects(Array.isArray(projectsData) ? projectsData : []);
+
+      const membersRes = await fetch("/api/members");
+      const membersData = await membersRes.json();
+      setMembers(Array.isArray(membersData) ? membersData : []);
       
       setLastUpdated(new Date());
     } catch (err) {
@@ -140,141 +127,23 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
 
   const isDeadlineClose = timeLeft.days === 0 && timeLeft.hours < 24;
 
-  const renderCalendar = () => {
-    if (user.Role !== "AM" && user.Role !== "BM") return null;
-
-    const today = new Date();
-    const monthStart = startOfMonth(viewDate);
-    const monthEnd = endOfMonth(viewDate);
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-    const selectedDayStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
-    
-    const normalizeDate = (dateStr: string) => {
-      if (!dateStr) return "";
-      // Handle ISO strings (2026-03-26T00:00:00.000Z) or simple strings (2026-03-26)
-      return dateStr.split('T')[0].replace(/\//g, '-');
-    };
-
-    const selectedDayTasks = tasks.filter(t => normalizeDate(t.Deadline) === selectedDayStr);
-    const selectedDayProjects = projects.filter(p => {
-      if (!selectedDayStr) return false;
-      const start = normalizeDate(p.StartDate);
-      const end = normalizeDate(p.EndDate);
-      return selectedDayStr >= start && selectedDayStr <= end;
-    });
-
-    const handlePrevMonth = () => setViewDate(subMonths(viewDate, 1));
-    const handleNextMonth = () => setViewDate(addMonths(viewDate, 1));
-
-    return (
-      <div className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-neon-orange">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-bold text-neon-orange flex items-center gap-2">
-            <Calendar size={20} />
-            <span>タスク＆プロジェクトカレンダー</span>
-          </h3>
-          <div className="flex items-center gap-4 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
-            <button onClick={handlePrevMonth} className="text-gray-500 hover:text-neon-orange transition-colors">
-              <ChevronLeftIcon size={18} />
-            </button>
-            <span className="text-sm font-bold text-gray-200 min-w-[80px] text-center font-digital">
-              {format(viewDate, "yyyy年 M月", { locale: ja })}
-            </span>
-            <button onClick={handleNextMonth} className="text-gray-500 hover:text-neon-orange transition-colors">
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center mb-2">
-          {["日", "月", "火", "水", "木", "金", "土"].map(day => (
-            <div key={day} className="text-[10px] text-gray-500 font-bold">{day}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-            <div key={`empty-${i}`} className="p-2" />
-          ))}
-          {days.map(day => {
-            const dayStr = format(day, "yyyy-MM-dd");
-            const dayTasks = tasks.filter(t => normalizeDate(t.Deadline) === dayStr && t.Status !== 'completed');
-            const dayProjects = projects.filter(p => {
-              if (p.Status === 'completed') return false;
-              const start = normalizeDate(p.StartDate);
-              const end = normalizeDate(p.EndDate);
-              return dayStr >= start && dayStr <= end;
-            });
-            const hasEvents = dayTasks.length > 0 || dayProjects.length > 0;
-            const isToday = isSameDay(day, today);
-            const isSelected = selectedDate && isSameDay(day, selectedDate);
-
-            return (
-              <button 
-                key={day.toISOString()} 
-                onClick={() => setSelectedDate(isSelected ? null : day)}
-                className={`p-1 rounded-md text-center text-xs relative transition-all hover:bg-white/5 ${
-                  isSelected ? "bg-neon-orange text-black font-bold" :
-                  isToday ? "bg-neon-orange/20 text-neon-orange font-bold border border-neon-orange/50" : "text-gray-300"
-                }`}
-              >
-                {format(day, "d")}
-                {hasEvents && !isSelected && (
-                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-neon-blue shadow-[0_0_6px_#00f3ff]" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Selected Day Details */}
-        {selectedDate && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            className="mt-6 pt-6 border-t border-white/10 space-y-4"
-          >
-            <div className="flex justify-between items-center">
-              <h4 className="text-sm font-bold text-neon-orange">
-                {format(selectedDate, "M月d日(E)", { locale: ja })} の予定
-              </h4>
-              <button onClick={() => setSelectedDate(null)} className="text-[10px] text-gray-500 hover:text-white">閉じる</button>
-            </div>
-
-            {selectedDayTasks.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] text-neon-blue font-digital uppercase tracking-widest">Tasks</p>
-                {selectedDayTasks.map(t => (
-                  <div key={t.TaskID} className="bg-black/40 p-2 rounded-lg border border-white/5 flex justify-between items-center">
-                    <span className={`text-xs ${t.Status === 'completed' ? 'line-through text-gray-500' : 'text-gray-200'}`}>{t.Content}</span>
-                    <span className="text-[9px] text-gray-500 bg-white/5 px-2 py-0.5 rounded">{t.Assignee}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {selectedDayProjects.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] text-neon-orange font-digital uppercase tracking-widest">Projects</p>
-                {selectedDayProjects.map(p => (
-                  <div key={p.ProjectID} className="bg-black/40 p-2 rounded-lg border border-white/5 flex justify-between items-center">
-                    <span className={`text-xs ${p.Status === 'completed' ? 'line-through text-gray-500' : 'text-gray-200'}`}>{p.What}</span>
-                    <span className="text-[9px] text-gray-500 bg-white/5 px-2 py-0.5 rounded">{p.Assignee}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {selectedDayTasks.length === 0 && selectedDayProjects.length === 0 && (
-              <p className="text-xs text-gray-500 text-center py-2">予定はありません</p>
-            )}
-          </motion.div>
-        )}
-      </div>
-    );
+  const renderView = () => {
+    switch (currentView) {
+      case "Team":
+        return <TeamTimeline tasks={tasks} projects={projects} members={members} />;
+      case "Calendar":
+        return <DeadlineCalendar tasks={tasks} projects={projects} />;
+      case "Weekly":
+        return <WeeklyPlan tasks={tasks} projects={projects} />;
+      case "Board":
+        return <QuestBoard tasks={tasks} projects={projects} />;
+      default:
+        return <QuestBoard tasks={tasks} projects={projects} />;
+    }
   };
 
   return (
-    <div className="container mx-auto px-4 pt-8 pb-24 max-w-2xl">
+    <div className="container mx-auto px-4 pt-8 pb-24 max-w-4xl">
       <SidebarMenu 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
@@ -357,124 +226,31 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
         </div>
       </header>
 
-      {/* Progress Summary */}
-      {(() => {
-        let relevantTasks = tasks;
-        let relevantProjects = projects;
-
-        if (user.Role === "店長") {
-          relevantTasks = tasks.filter(t => t.Assignee === user.Name);
-          relevantProjects = projects.filter(p => p.Assignee === user.Name || p.WithWhom.includes(user.Name));
-        }
-
-        if (relevantTasks.length === 0 && relevantProjects.length === 0) return null;
-
-        const completedTasks = relevantTasks.filter(t => t.Status === 'completed').length;
-        const totalTasks = relevantTasks.length;
-        const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-        const completedProjects = relevantProjects.filter(p => p.Status === 'completed').length;
-        const totalProjects = relevantProjects.length;
-        const projectProgress = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0;
-
-        return (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-neon-blue"
-          >
-            <h3 className="text-lg font-bold text-neon-blue mb-4 flex items-center gap-2">
-              <CheckSquare size={20} />
-              <span>進行状況サマリー</span>
-            </h3>
-            
-            <div className="space-y-6">
-              {totalTasks > 0 && (
-                <div>
-                  <button 
-                    onClick={() => setShowTaskDetails(!showTaskDetails)}
-                    className="w-full flex justify-between text-xs mb-2 items-center hover:text-neon-blue transition-colors"
-                  >
-                    <span className="text-gray-400 flex items-center gap-1">
-                      タスク ({completedTasks}/{totalTasks})
-                      <ChevronRight size={12} className={`transition-transform ${showTaskDetails ? "rotate-90" : ""}`} />
-                    </span>
-                    <span className="text-neon-blue font-digital">{taskProgress}%</span>
-                  </button>
-                  <div className="h-2 bg-black/50 rounded-full overflow-hidden border border-white/5 mb-2">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${taskProgress}%` }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      className="h-full bg-neon-blue shadow-[0_0_10px_#00f3ff]"
-                    />
-                  </div>
-                  {showTaskDetails && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      className="space-y-1 mt-2"
-                    >
-                      {relevantTasks.map(t => (
-                        <div key={t.TaskID} className="flex justify-between items-center text-[10px] bg-white/5 p-2 rounded">
-                          <div className="flex flex-col">
-                            <span className={t.Status === 'completed' ? 'line-through text-gray-600' : 'text-gray-300'}>{t.Content}</span>
-                            <span className="text-[8px] text-neon-orange mt-0.5">期限: {t.Deadline ? t.Deadline.split('T')[0] : '未設定'}</span>
-                          </div>
-                          <span className="text-gray-500">{t.Assignee}</span>
-                        </div>
-                      ))}
-                    </motion.div>
-                  )}
-                </div>
-              )}
-
-              {totalProjects > 0 && (
-                <div>
-                  <button 
-                    onClick={() => setShowProjectDetails(!showProjectDetails)}
-                    className="w-full flex justify-between text-xs mb-2 items-center hover:text-neon-orange transition-colors"
-                  >
-                    <span className="text-gray-400 flex items-center gap-1">
-                      プロジェクト ({completedProjects}/{totalProjects})
-                      <ChevronRight size={12} className={`transition-transform ${showProjectDetails ? "rotate-90" : ""}`} />
-                    </span>
-                    <span className="text-neon-orange font-digital">{projectProgress}%</span>
-                  </button>
-                  <div className="h-2 bg-black/50 rounded-full overflow-hidden border border-white/5 mb-2">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${projectProgress}%` }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      className="h-full bg-neon-orange shadow-[0_0_10px_#ff9d00]"
-                    />
-                  </div>
-                  {showProjectDetails && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      className="space-y-1 mt-2"
-                    >
-                      {relevantProjects.map(p => (
-                        <div key={p.ProjectID} className="flex justify-between items-center text-[10px] bg-white/5 p-2 rounded">
-                          <div className="flex flex-col">
-                            <span className={p.Status === 'completed' ? 'line-through text-gray-600' : 'text-gray-300'}>{p.What}</span>
-                            <span className="text-[8px] text-neon-orange mt-0.5">期間: {p.StartDate ? p.StartDate.split('T')[0] : ''} 〜 {p.EndDate ? p.EndDate.split('T')[0] : ''}</span>
-                          </div>
-                          <span className="text-gray-500">{p.Assignee}</span>
-                        </div>
-                      ))}
-                    </motion.div>
-                  )}
-                </div>
-              )}
+      {/* View Switcher and Multi-View */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-6">
+          <ViewSwitcher currentView={currentView} onViewChange={setCurrentView} />
+          <div className="flex gap-2">
+            <div className="flex items-center gap-2 px-3 py-1 glass-card rounded-full border border-neon-blue/30">
+              <Sword size={12} className="text-neon-blue" />
+              <span className="text-[10px] font-digital text-neon-blue uppercase">Quests: {tasks.length}</span>
             </div>
-          </motion.div>
-        );
-      })()}
-
-      {/* Dashboard Calendar for AM/BM */}
-      {renderCalendar()}
+            <div className="flex items-center gap-2 px-3 py-1 glass-card rounded-full border border-neon-orange/30">
+              <Target size={12} className="text-neon-orange" />
+              <span className="text-[10px] font-digital text-neon-orange uppercase">Scenarios: {projects.length}</span>
+            </div>
+          </div>
+        </div>
+        
+        <motion.div
+          key={currentView}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          {renderView()}
+        </motion.div>
+      </div>
 
       {/* Action Buttons */}
       <div className="grid grid-cols-1 gap-4">
@@ -578,9 +354,14 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
           <div className="flex justify-center items-center gap-2">
             <div className={`w-1 h-1 rounded-full ${gasStatus.error ? "bg-neon-red animate-pulse" : gasStatus.configured ? "bg-neon-blue" : "bg-gray-800"}`} />
             <span className="text-[6px] text-gray-800 font-digital uppercase tracking-widest">
-              GAS LINK: {gasStatus.error ? "ERROR" : gasStatus.configured ? "STABLE" : "OFFLINE"}
+              GAS LINK: {gasStatus.error ? "ERROR (Check GAS_URL)" : gasStatus.configured ? "STABLE" : "OFFLINE (Using Local DB)"}
             </span>
           </div>
+          {gasStatus.error && (
+            <p className="text-[6px] text-neon-red font-digital uppercase mt-1">
+              Google Sheetsとの連携に失敗しました。GAS_URLが正しく設定されているか確認してください。
+            </p>
+          )}
         </div>
       </div>
     </div>

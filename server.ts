@@ -677,15 +677,18 @@ app.post("/api/tasks", async (req, res) => {
     const task = data.tasks.find((t: any) => t.TaskID === req.body.taskId);
     if (task) {
       if (req.body.status !== undefined) task.Status = req.body.status;
-      if (req.body.assignee !== undefined) task.Assignee = req.body.assignee;
+      if (req.body.assignee !== undefined) task.Assignees = Array.isArray(req.body.assignee) ? req.body.assignee : [req.body.assignee];
+      if (req.body.assignees !== undefined) task.Assignees = req.body.assignees;
       if (req.body.deadline !== undefined) task.Deadline = req.body.deadline;
       if (req.body.content !== undefined) task.Content = req.body.content;
     }
   } else {
     data.tasks.push({
       TaskID: (gasResult && gasResult.taskId) ? gasResult.taskId : "T" + Date.now(),
-      Assignee: req.body.assignee || '',
+      Assignees: req.body.assignees || (req.body.assignee ? [req.body.assignee] : []),
       Deadline: req.body.deadline || '',
+      IsAllDay: req.body.isAllDay !== undefined ? req.body.isAllDay : true,
+      Time: req.body.time || '',
       Content: req.body.content || '',
       Status: req.body.status || 'pending',
       CreatedAt: new Date().toISOString(),
@@ -753,7 +756,7 @@ app.post("/api/projects", async (req, res) => {
     const project = data.projects.find((p: any) => p.ProjectID === req.body.projectId);
     if (project) {
       if (req.body.status !== undefined) project.Status = req.body.status;
-      if (req.body.assignee !== undefined) project.Assignee = req.body.assignee;
+      if (req.body.assignees !== undefined) project.Assignees = req.body.assignees;
       if (req.body.withWhom !== undefined) project.WithWhom = req.body.withWhom;
       if (req.body.startDate !== undefined) project.StartDate = req.body.startDate;
       if (req.body.endDate !== undefined) project.EndDate = req.body.endDate;
@@ -764,7 +767,7 @@ app.post("/api/projects", async (req, res) => {
   } else {
     data.projects.push({
       ProjectID: (gasResult && gasResult.projectId) ? gasResult.projectId : "P" + Date.now(),
-      Assignee: req.body.assignee || '',
+      Assignees: req.body.assignees || [],
       WithWhom: req.body.withWhom || '',
       StartDate: req.body.startDate || '',
       EndDate: req.body.endDate || '',
@@ -793,6 +796,26 @@ app.delete("/api/projects/:id", async (req, res) => {
     saveData(data);
   }
   res.json({ success: true });
+});
+
+app.get("/api/members", async (req, res) => {
+  const gasResult = await callGas('getMembers', {}, true);
+  if (gasResult) return res.json(gasResult);
+  
+  // Mock members if GAS fails
+  const data = getData();
+  const members = data.users.map((u: any) => ({
+    id: u.UserID,
+    name: u.Name,
+    role: u.Role,
+    area: u.Area
+  }));
+  res.json(members);
+});
+
+app.post("/api/sendNotification", async (req, res) => {
+  const gasResult = await callGas('sendNotification', req.body, false);
+  res.json(gasResult || { success: true });
 });
 
 async function startServer() {

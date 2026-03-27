@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { User } from "../App";
+import { User } from "../types";
 import { ChevronLeft, Send, ChartLine, Info, Plus, Trash2 } from "lucide-react";
 
 interface DecadeFormProps {

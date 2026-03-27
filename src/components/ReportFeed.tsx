@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { User } from "../App";
+import { User } from "../types";
 import { ChevronLeft, MessageSquare, Send, User as UserIcon, Calendar, Heart } from "lucide-react";
 
 interface ReportFeedProps {

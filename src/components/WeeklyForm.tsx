@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { User } from "../App";
+import { User } from "../types";
 import { ChevronLeft, Send, Info, MessageSquare, Calendar } from "lucide-react";
 
 interface WeeklyFormProps {

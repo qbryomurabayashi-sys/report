@@ -31,6 +31,24 @@
   .glass-card {
     @apply bg-glass-bg backdrop-blur-xl border border-white/10;
   }
+  .hp-gauge {
+    @apply h-3 rounded-full bg-black/40 overflow-hidden border border-white/5;
+  }
+  .hp-gauge-blue {
+    @apply h-full bg-gradient-to-r from-neon-blue/40 to-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.5)];
+  }
+  .hp-gauge-orange {
+    @apply h-full bg-gradient-to-r from-neon-orange/40 to-neon-orange shadow-[0_0_10px_rgba(255,157,0,0.5)];
+  }
+  .quest-card {
+    @apply bg-glass-bg backdrop-blur-xl border border-white/10 p-4 rounded-xl border-l-4 transition-all hover:scale-[1.02] active:scale-[0.98];
+  }
+  .quest-card-task {
+    @apply border-l-neon-blue;
+  }
+  .quest-card-project {
+    @apply border-l-neon-orange;
+  }
 }
 
 @keyframes scan {
