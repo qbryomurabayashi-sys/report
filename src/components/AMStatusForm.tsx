@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { User } from "../types";
-import { ChevronLeft, Send, Save, Plus, Trash2, Building2, Users, ChevronDown, ChevronUp, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Save, Plus, Trash2, Building2, Users, ChevronDown, ChevronUp, X } from "lucide-react";
 
 interface AMStatusFormProps {
   user: User;
@@ -38,6 +38,7 @@ interface InterviewEvent {
   importance: '高' | '中' | '低';
   store: string;
   name: string;
+  interviewer: string;
   interviewType: string;
   status: '継続' | '完了' | 'BMフォロー必要';
   contentMain: string;
@@ -121,6 +122,7 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
   const addInterviewEvent = () => {
     setInterviewEvents([...interviewEvents, { 
       id: Date.now().toString(), date: '', importance: '中', store: '', name: '', 
+      interviewer: '',
       interviewType: '', status: '継続', contentMain: '', contentConcerns: '', 
       contentNextAction: '', contentImpression: '' 
     }]);
@@ -203,16 +205,20 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
         {activeTab === 'store' && (
           <div className="space-y-4">
             <div className="glass-card p-4 rounded-xl flex gap-2 items-center">
-              <select
-                value={selectedStoreToAdd}
-                onChange={(e) => setSelectedStoreToAdd(e.target.value)}
-                className="flex-1 bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-neon-blue"
-              >
-                <option value="">店舗名を入力または選択...</option>
-                {initialStores.filter(s => !storeReports.some(r => r.storeName === s)).map(store => (
-                  <option key={store} value={store}>{store}</option>
-                ))}
-              </select>
+              <div className="flex-1 relative">
+                <input
+                  list="store-suggestions"
+                  value={selectedStoreToAdd}
+                  onChange={(e) => setSelectedStoreToAdd(e.target.value)}
+                  placeholder="店舗名を入力または選択..."
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-neon-blue"
+                />
+                <datalist id="store-suggestions">
+                  {initialStores.filter(s => !storeReports.some(r => r.storeName === s)).map(store => (
+                    <option key={store} value={store} />
+                  ))}
+                </datalist>
+              </div>
               <button
                 onClick={addStoreReport}
                 disabled={!selectedStoreToAdd}
@@ -379,11 +385,31 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
               </div>
             ))
             )}
+            {/* Navigation to Area Tab */}
+            <div className="pt-8 flex justify-end">
+              <button
+                onClick={() => {
+                  setActiveTab('area');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="flex items-center gap-2 bg-neon-orange/20 text-neon-orange border border-neon-orange/30 px-6 py-3 rounded-xl font-digital tracking-widest hover:bg-neon-orange hover:text-black transition-all"
+              >
+                エリア報告へ進む <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         )}
 
         {activeTab === 'area' && (
           <div className="space-y-8">
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => setActiveTab('store')}
+                className="flex items-center gap-1 text-[10px] font-digital text-gray-500 hover:text-neon-blue transition-colors"
+              >
+                <ChevronLeft size={12} /> 店舗報告に戻る
+              </button>
+            </div>
             <div className="glass-card p-6 rounded-2xl border-l-4 border-neon-blue">
               <h3 className="text-sm font-bold text-gray-200 mb-4 flex items-center gap-2">
                 <span className="text-neon-blue">📄</span> AM総括
@@ -491,7 +517,10 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                           <option value="">店舗選択</option>
                           {initialStores.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
-                        <input type="text" placeholder="氏名" value={event.name} onChange={(e) => updateInterviewEvent(event.id, 'name', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-yellow-400" />
+                        <input type="text" placeholder="面談相手の氏名" value={event.name} onChange={(e) => updateInterviewEvent(event.id, 'name', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-yellow-400" />
+                      </div>
+                      <div className="flex gap-2 md:col-span-2">
+                        <input type="text" placeholder="面談者（誰が面談したか）" value={event.interviewer} onChange={(e) => updateInterviewEvent(event.id, 'interviewer', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-yellow-400" />
                       </div>
                       <div className="flex gap-2 md:col-span-2">
                         <select value={event.interviewType} onChange={(e) => updateInterviewEvent(event.id, 'interviewType', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-yellow-400">

@@ -20,12 +20,17 @@ app.use(express.json());
 // Web Push Setup
 // In a real app, these should be environment variables
 const publicVapidKey = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYpPNs_Zqk";
-const privateVapidKey = "8xV-oH7gG8T-Q8R-R8T-Q8R-R8T-Q8R-R8T-Q8R-R8T"; // Dummy key for preview
-webpush.setVapidDetails(
-  "mailto:test@example.com",
-  publicVapidKey,
-  privateVapidKey
-);
+const privateVapidKey = process.env.VAPID_PRIVATE_KEY || "8xV-oH7gG8T-Q8R-R8T-Q8R-R8T-Q8R-R8T-Q8R-R8T"; // Should be set in env
+
+try {
+  webpush.setVapidDetails(
+    "mailto:test@example.com",
+    publicVapidKey,
+    privateVapidKey
+  );
+} catch (err) {
+  console.error("Failed to set VAPID details. Push notifications may not work.", err);
+}
 
 // Mock DB for subscriptions
 let subscriptions: Record<string, any[]> = {};
@@ -38,12 +43,32 @@ app.post("/api/subscribe", (req, res) => {
   if (!subscriptions[userId].some(s => s.endpoint === subscription.endpoint)) {
     subscriptions[userId].push(subscription);
   }
-  res.status(201).json({});
+  console.log(`User ${userId} subscribed for push notifications. Total subs: ${subscriptions[userId].length}`);
+  res.status(201).json({ success: true });
+});
+
+app.post("/api/test-push", (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: "UserID required" });
+  
+  notifyUsers([String(userId)], {
+    title: "テスト通知",
+    body: "これはスマートフォン連動のテスト通知です。正常に動作しています。",
+    badge: 1
+  });
+  
+  res.json({ success: true, message: "Test notification sent" });
 });
 
 // Helper to send notifications
 function notifyUsers(userIds: string[], payload: any) {
   console.log(`Sending notifications to users: ${userIds.join(", ")} with payload:`, payload);
+  
+  // Add default badge if not present
+  if (payload.badge === undefined) {
+    payload.badge = 1;
+  }
+
   userIds.forEach(uid => {
     const subs = subscriptions[uid] || [];
     subs.forEach(sub => {
@@ -909,6 +934,16 @@ app.get("/api/members", async (req, res) => {
     area: u.Area
   }));
   res.json(members);
+});
+
+app.get("/api/notifications/count", async (req, res) => {
+  const { userId } = req.query;
+  const gasResult = await callGas('getNotifications', { userId }, false);
+  if (Array.isArray(gasResult)) {
+    const unread = gasResult.filter(n => !n.IsRead).length;
+    return res.json({ count: unread });
+  }
+  res.json({ count: 0 });
 });
 
 app.get("/api/notifications", async (req, res) => {

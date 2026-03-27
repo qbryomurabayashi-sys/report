@@ -11,7 +11,7 @@ interface ReportFeedProps {
 type ReportType = "weekly" | "decade" | "am_status";
 
 export function ReportFeed({ user, onBack }: ReportFeedProps) {
-  const [reportType, setReportType] = useState<ReportType>("weekly");
+  const [reportType, setReportType] = useState<ReportType>("am_status");
   const [filter, setFilter] = useState<"all" | "mine" | "others">("all");
   const [reports, setReports] = useState<any[]>([]);
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
@@ -49,6 +49,8 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
   useEffect(() => {
     if (user.Role === "店長") {
       setReportType("weekly");
+    } else {
+      setReportType("am_status");
     }
     fetchReports();
     setSelectedReport(null);
@@ -223,10 +225,10 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
       {user.Role !== "店長" && (
         <div className="flex gap-2 mb-8 bg-black/40 p-1 rounded-xl border border-white/5">
           <button
-            onClick={() => setReportType("weekly")}
-            className={`flex-1 py-3 rounded-lg text-[10px] font-digital uppercase tracking-widest transition-all ${reportType === "weekly" ? "bg-neon-blue text-black shadow-[0_0_15px_rgba(0,243,255,0.4)]" : "text-gray-500 hover:text-gray-300"}`}
+            onClick={() => setReportType("am_status")}
+            className={`flex-1 py-3 rounded-lg text-[10px] font-digital uppercase tracking-widest transition-all ${reportType === "am_status" ? "bg-neon-green text-black shadow-[0_0_15px_rgba(0,255,102,0.4)]" : "text-gray-500 hover:text-gray-300"}`}
           >
-            店長の週報
+            AMの近況
           </button>
           <button
             onClick={() => setReportType("decade")}
@@ -235,10 +237,10 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
             AMの旬報
           </button>
           <button
-            onClick={() => setReportType("am_status")}
-            className={`flex-1 py-3 rounded-lg text-[10px] font-digital uppercase tracking-widest transition-all ${reportType === "am_status" ? "bg-neon-green text-black shadow-[0_0_15px_rgba(0,255,102,0.4)]" : "text-gray-500 hover:text-gray-300"}`}
+            onClick={() => setReportType("weekly")}
+            className={`flex-1 py-3 rounded-lg text-[10px] font-digital uppercase tracking-widest transition-all ${reportType === "weekly" ? "bg-neon-blue text-black shadow-[0_0_15px_rgba(0,243,255,0.4)]" : "text-gray-500 hover:text-gray-300"}`}
           >
-            AMの近況
+            店長の週報
           </button>
         </div>
       )}
@@ -635,6 +637,43 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                   <div key={idx} className="bg-white/5 p-3 rounded-lg border border-white/10">
                                     <h5 className="text-xs font-bold text-neon-blue mb-1">{store.storeName}</h5>
                                     <p className="text-[10px] text-gray-400 line-clamp-2">{store.textThisMonthFocus || "注力ポイント未入力"}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </section>
+                          )}
+
+                          {report.hrEvents && report.hrEvents.length > 0 && (
+                            <section>
+                              <label className="text-[10px] text-neon-red font-digital uppercase tracking-widest block mb-2 mt-4 border-t border-white/10 pt-4">入社・退職・休職 ({report.hrEvents.length}件)</label>
+                              <div className="space-y-2">
+                                {report.hrEvents.map((event: any, idx: number) => (
+                                  <div key={idx} className="bg-neon-red/5 p-2 rounded-lg border border-neon-red/10">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="text-[10px] font-bold text-neon-red">{event.type}</span>
+                                      <span className="text-[8px] text-gray-500">{event.date}</span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-300">{event.store} / {event.name}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </section>
+                          )}
+
+                          {report.interviewEvents && report.interviewEvents.length > 0 && (
+                            <section>
+                              <label className="text-[10px] text-yellow-400 font-digital uppercase tracking-widest block mb-2 mt-4 border-t border-white/10 pt-4">スタッフ面談 ({report.interviewEvents.length}件)</label>
+                              <div className="space-y-2">
+                                {report.interviewEvents.map((event: any, idx: number) => (
+                                  <div key={idx} className="bg-yellow-400/5 p-2 rounded-lg border border-yellow-400/10">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="text-[10px] font-bold text-yellow-400">{event.interviewType || "面談"} ({event.importance})</span>
+                                      <span className="text-[8px] text-gray-500">{event.date}</span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-300">{event.store} / {event.name}</p>
+                                    {event.interviewer && (
+                                      <p className="text-[8px] text-gray-500 mt-1">面談者: {event.interviewer}</p>
+                                    )}
                                   </div>
                                 ))}
                               </div>

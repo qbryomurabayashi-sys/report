@@ -230,6 +230,31 @@ export function SidebarMenu({ isOpen, onClose, user, onLogout, onOpenPinModal, o
                         onChange={setSound} 
                       />
 
+                      <div className="pt-4 border-t border-white/5">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch("/api/test-push", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ userId: user.UserID })
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                alert("テスト通知を送信しました。スマートフォンを確認してください。");
+                              }
+                            } catch (err) {
+                              console.error("Test push failed", err);
+                              alert("テスト通知の送信に失敗しました。");
+                            }
+                          }}
+                          className="w-full flex items-center justify-center gap-2 p-3 bg-neon-blue/10 border border-neon-blue/30 rounded-xl text-neon-blue text-[10px] font-digital uppercase tracking-widest hover:bg-neon-blue hover:text-black transition-all"
+                        >
+                          <Bell size={14} />
+                          テスト通知を送信
+                        </button>
+                      </div>
+
                       <div className="space-y-2">
                         <div className="flex items-center gap-3 text-gray-400 mb-1">
                           <Type size={18} />

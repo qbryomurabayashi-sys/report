@@ -30,6 +30,7 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [gasStatus, setGasStatus] = useState<{ configured: boolean, error: boolean }>({ configured: false, error: false });
+  const [notificationCount, setNotificationCount] = useState(0);
 
   const fetchData = async (refresh = false) => {
     setIsRefreshing(true);
@@ -38,6 +39,20 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
       const debugRes = await fetch("/api/debug");
       const debugData = await debugRes.json();
       setGasStatus({ configured: debugData.gasUrlSet, error: false });
+
+      // Fetch notification count
+      const notifRes = await fetch(`/api/notifications/count?userId=${user.UserID}`);
+      const notifData = await notifRes.json();
+      setNotificationCount(notifData.count || 0);
+      
+      // Update app badge
+      if ('setAppBadge' in navigator) {
+        if (notifData.count > 0) {
+          (navigator as any).setAppBadge(notifData.count);
+        } else {
+          (navigator as any).clearAppBadge();
+        }
+      }
 
       const tasksRes = await fetch(`/api/tasks${refresh ? "?refresh=true" : ""}`, {
         headers: { 'Cache-Control': 'no-cache' }
@@ -180,9 +195,14 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Bell size={12} className={isDeadlineClose ? "text-neon-red animate-pulse" : "text-gray-700"} />
-            <span className={`text-[10px] font-digital uppercase tracking-[0.2em] ${isDeadlineClose ? "text-neon-red" : "text-gray-700"}`}>
-              {isDeadlineClose ? "至急" : "順調"}
+            <div className="relative">
+              <Bell size={12} className={isDeadlineClose || notificationCount > 0 ? "text-neon-red animate-pulse" : "text-gray-700"} />
+              {notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-neon-red rounded-full shadow-[0_0_5px_rgba(255,0,0,0.5)]" />
+              )}
+            </div>
+            <span className={`text-[10px] font-digital uppercase tracking-[0.2em] ${isDeadlineClose || notificationCount > 0 ? "text-neon-red" : "text-gray-700"}`}>
+              {notificationCount > 0 ? `${notificationCount}件の通知` : isDeadlineClose ? "至急" : "順調"}
             </span>
           </div>
         </div>

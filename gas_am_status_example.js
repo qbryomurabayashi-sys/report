@@ -99,7 +99,7 @@ function handleSaveAMStatusReport(data) {
 
   // 4. Save Interview Events
   if (data.interviewEvents && data.interviewEvents.length > 0) {
-    const interviewHeaders = ["ReportID", "Timestamp", "UserID", "Date", "Importance", "StoreName", "PersonName", "InterviewType", "Status", "ContentMain", "ContentConcerns", "ContentNextAction", "ContentImpression"];
+    const interviewHeaders = ["ReportID", "Timestamp", "UserID", "Date", "Importance", "StoreName", "PersonName", "Interviewer", "InterviewType", "Status", "ContentMain", "ContentConcerns", "ContentNextAction", "ContentImpression"];
     const interviewSheet = getOrCreateSheet(ss, "AMStatus_InterviewEvents", interviewHeaders);
     
     const interviewRows = data.interviewEvents.map(event => [
@@ -110,6 +110,7 @@ function handleSaveAMStatusReport(data) {
       event.importance || "",
       event.store || "",
       event.name || "",
+      event.interviewer || "",
       event.interviewType || "",
       event.status || "",
       event.contentMain || "",
