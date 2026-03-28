@@ -53,10 +53,21 @@ const STORE_MASTER: Record<string, string[]> = {
         "オーケーみなとみらい店", "ヨークフーズ上大岡店", "ウィング久里浜店", 
         "コースカベイサイドストアーズ店", "横浜市役所店", "サミット横浜岡野店"
     ],
+    "神奈川南": [
+        "京急横浜駅北口店", "イトーヨーカドー横浜別所店", "アピタ金沢文庫店", 
+        "オーケーみなとみらい店", "ヨークフーズ上大岡店", "ウィング久里浜店", 
+        "コースカベイサイドストアーズ店", "横浜市役所店", "サミット横浜岡野店"
+    ],
     "神奈川北ブロック": [
         "川崎アゼリア店", "武蔵小杉店", "溝の口店", "新百合ヶ丘店"
     ],
+    "神奈川北": [
+        "川崎アゼリア店", "武蔵小杉店", "溝の口店", "新百合ヶ丘店"
+    ],
     "東京多摩ブロック": [
+        "町田店", "八王子店", "立川店", "吉祥寺店"
+    ],
+    "東京多摩": [
         "町田店", "八王子店", "立川店", "吉祥寺店"
     ]
 };
@@ -66,7 +77,7 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
   const [expandedStoreId, setExpandedStoreId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const initialStores = STORE_MASTER[user.Area || ""] || [];
+  const initialStores = STORE_MASTER[user.Area || ""] || Array.from(new Set(Object.values(STORE_MASTER).flat())).sort();
   const [storeReports, setStoreReports] = useState<StoreReport[]>([]);
   const [selectedStoreToAdd, setSelectedStoreToAdd] = useState("");
 
@@ -163,7 +174,10 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
         alert("近況報告を提出しました");
         onBack();
       } else {
-        alert(data.message || "提出に失敗しました");
+        console.error("Submission error details:", data);
+        const errorMsg = data.message || data.error || "不明なエラー";
+        const details = data.details || "Google Apps Script側の設定（シート作成権限、デプロイURLなど）を確認してください。";
+        alert("提出に失敗しました: " + errorMsg + "\n\n" + details);
       }
     } catch (err) {
       alert("エラーが発生しました");

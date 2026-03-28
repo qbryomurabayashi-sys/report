@@ -19,13 +19,17 @@ const FALLBACK_GAS_URL = "https://script.google.com/macros/s/AKfycbxJkVUWmqEL8oh
 async function callGas(envGasUrl: string | undefined, action: string, payload: any = {}) {
   const gasUrl = envGasUrl || FALLBACK_GAS_URL;
   
-  if (!gasUrl) {
-    console.error("GAS_URL is missing in environment variables and fallback");
-    return { success: false, message: "GAS_URL is not configured" };
+  if (!gasUrl || gasUrl.includes("TODO") || gasUrl === "") {
+    console.error("GAS_URL is missing or invalid");
+    return { 
+      success: false, 
+      message: "GAS_URLが設定されていません。", 
+      details: "Cloudflare Pagesの設定画面で環境変数『GAS_URL』が正しく入力されているか確認してください。設定後は再デプロイが必要です。" 
+    };
   }
   
   try {
-    console.log(`Calling GAS with action: ${action}, URL: ${gasUrl.substring(0, 30)}...`);
+    console.log(`Calling GAS with action: ${action}, URL: ${gasUrl.substring(0, 40)}...`);
     const response = await fetch(gasUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -34,20 +38,35 @@ async function callGas(envGasUrl: string | undefined, action: string, payload: a
     });
 
     if (!response.ok) {
-      console.error(`GAS returned error status: ${response.status}`);
-      return { success: false, message: `GAS returned status ${response.status}` };
+      const errorText = await response.text();
+      console.error(`GAS HTTP Error: ${response.status} - ${errorText}`);
+      return { 
+        success: false, 
+        message: `GASサーバーエラー (${response.status})`, 
+        details: "GASのデプロイ設定が『全員（匿名含む）』になっているか確認してください。" 
+      };
     }
 
     const text = await response.text();
     try {
-      return JSON.parse(text);
+      const data = JSON.parse(text);
+      console.log(`GAS response for ${action}:`, data.success ? "success" : "failed");
+      return data;
     } catch (e) {
-      console.error("GAS returned invalid JSON:", text.substring(0, 100));
-      return { success: false, message: "GAS returned invalid JSON", raw: text.substring(0, 100) };
+      console.error("GAS returned invalid JSON:", text.substring(0, 200));
+      return { 
+        success: false, 
+        message: "GASから不正なデータが返されました", 
+        details: text.substring(0, 100) 
+      };
     }
   } catch (error) {
     console.error("Fetch error while calling GAS:", error);
-    return { success: false, message: error instanceof Error ? error.message : "Fetch error" };
+    return { 
+      success: false, 
+      message: "GASへの通信に失敗しました", 
+      details: error instanceof Error ? error.message : "ネットワークエラー" 
+    };
   }
 }
 
@@ -116,14 +135,16 @@ app.post('/api/saveAMStatusReport', async (c) => {
   const gasUrl = c.env.GAS_URL;
   const body = await c.req.json();
   const data = await callGas(gasUrl, "saveAMStatusReport", body);
-  return c.json(data || { success: false });
+  if (!data) return c.json({ success: false, message: "GASからの応答がありません。GAS_URLの設定を確認してください。" }, 500);
+  return c.json(data);
 });
 
 app.get('/api/amStatusReports', async (c) => {
   const gasUrl = c.env.GAS_URL;
   const query = c.req.query();
   const data = await callGas(gasUrl, "getAMStatusReports", query);
-  return c.json(data || []);
+  if (!data) return c.json([]);
+  return c.json(data);
 });
 
 app.post('/api/toggleLike', async (c) => {
@@ -234,14 +255,15 @@ app.get('/api/notifications/count', async (c) => {
     const unread = data.filter((n: any) => !n.IsRead).length;
     return c.json({ count: unread });
   }
-  return c.json({ count: 0 });
+  return c.json({ count: 0, error: "通知データの取得に失敗しました", details: data });
 });
 
 app.get('/api/notifications', async (c) => {
   const envGasUrl = c.env.GAS_URL;
   const query = c.req.query();
   const data = await callGas(envGasUrl, "getNotifications", query);
-  return c.json(data || []);
+  if (!data) return c.json([]);
+  return c.json(data);
 });
 
 app.post('/api/sendNotification', async (c) => {
