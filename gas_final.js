@@ -330,6 +330,7 @@ function saveAMStatusReport(data) {
   
   try {
     const mainSheet = ss.getSheetByName("AMStatusReports");
+    if (!mainSheet) throw new Error("AMStatusReports sheet not found");
     mainSheet.appendRow([
       reportId, timestamp, data.UserID || "", data.UserName || "", data.UserArea || "",
       data.textAreaVision || "", data.textAreaSummary || "", data.textManagerCondition || "", data.textOtherTopics || "",
@@ -338,6 +339,7 @@ function saveAMStatusReport(data) {
 
     if (data.storeReports && data.storeReports.length > 0) {
       const storeSheet = ss.getSheetByName("AMStatus_StoreReports");
+      if (!storeSheet) throw new Error("AMStatus_StoreReports sheet not found");
       const rows = data.storeReports.map(s => [
         reportId, timestamp, data.UserID || "", s.storeName || "", s.textLastMonthGoals || "", s.textLastMonthResults || "",
         s.textThisMonthGoals || "", s.textThisMonthFocus || "", s.textPromo || "", s.textFacility || "",
@@ -348,6 +350,7 @@ function saveAMStatusReport(data) {
 
     if (data.hrEvents && data.hrEvents.length > 0) {
       const hrSheet = ss.getSheetByName("AMStatus_HREvents");
+      if (!hrSheet) throw new Error("AMStatus_HREvents sheet not found");
       const rows = data.hrEvents.map(e => [
         reportId, timestamp, data.UserID || "", e.type || "", e.date || "", e.store || "", e.name || "", e.details || ""
       ]);
@@ -356,6 +359,7 @@ function saveAMStatusReport(data) {
 
     if (data.interviewEvents && data.interviewEvents.length > 0) {
       const intSheet = ss.getSheetByName("AMStatus_InterviewEvents");
+      if (!intSheet) throw new Error("AMStatus_InterviewEvents sheet not found");
       const rows = data.interviewEvents.map(e => [
         reportId, timestamp, data.UserID || "", e.date || "", e.importance || "", e.store || "", e.name || "", e.interviewer || "", e.interviewType || "", e.status || "", e.contentMain || "", e.contentConcerns || "", e.contentNextAction || "", e.contentImpression || ""
       ]);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { User } from "../types";
-import { ChevronLeft, MessageSquare, Send, User as UserIcon, Calendar, Heart } from "lucide-react";
+import { ChevronLeft, MessageSquare, Send, User as UserIcon, Calendar, Heart, RefreshCw } from "lucide-react";
 
 interface ReportFeedProps {
   user: User;
@@ -228,7 +228,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
           title="更新"
         >
           <motion.div whileTap={{ rotate: 180 }}>
-            <Calendar size={18} />
+            <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
           </motion.div>
         </button>
       </header>
@@ -238,7 +238,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
         <div className="flex gap-2 mb-8 bg-black/40 p-1 rounded-xl border border-white/5">
           <button
             onClick={() => setReportType("am_status")}
-            className={`flex-1 py-3 rounded-lg text-[10px] font-digital uppercase tracking-widest transition-all ${reportType === "am_status" ? "bg-neon-green text-black shadow-[0_0_15px_rgba(0,255,102,0.4)]" : "text-gray-500 hover:text-gray-300"}`}
+            className={`flex-1 py-3 rounded-lg text-[10px] font-digital uppercase tracking-widest transition-all ${reportType === "am_status" ? "bg-neon-green text-black shadow-[0_0_15px_rgba(0,255,0,0.4)]" : "text-gray-500 hover:text-gray-300"}`}
           >
             AMの近況
           </button>
@@ -298,9 +298,19 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
           </button>
         </div>
       )}
+      {user.Role === "AM" && reportType === "am_status" && (
+          <div className="mb-6 px-2">
+            <h3 className="text-[10px] font-digital text-neon-green uppercase tracking-[0.2em]">AMの近況報告フィード</h3>
+          </div>
+      )}
       {user.Role === "AM" && reportType === "decade" && (
           <div className="mb-6 px-2">
             <h3 className="text-[10px] font-digital text-neon-orange uppercase tracking-[0.2em]">AMの旬報フィード</h3>
+          </div>
+      )}
+      {user.Role === "BM" && reportType === "am_status" && (
+          <div className="mb-6 px-2">
+            <h3 className="text-[10px] font-digital text-neon-green uppercase tracking-[0.2em]">AMの近況報告フィード</h3>
           </div>
       )}
       {user.Role === "BM" && reportType === "weekly" && (
@@ -356,7 +366,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
         )}
         {filteredReports.map((report) => {
           const isMine = String(report.UserID) === String(user.UserID);
-          const typeColor = reportType === "weekly" ? "neon-blue" : "neon-orange";
+          const typeColor = reportType === "weekly" ? "neon-blue" : reportType === "decade" ? "neon-orange" : "neon-green";
           const cardBorder = selectedReport?.ReportID === report.ReportID
             ? `border-${typeColor}`
             : isMine
@@ -364,10 +374,12 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
               : `border-${typeColor}/20`;
           
           const cardBg = isMine 
-            ? "bg-neon-green/10 shadow-[inset_0_0_20px_rgba(0,255,102,0.05)]" 
+            ? "bg-neon-green/10 shadow-[inset_0_0_20px_rgba(0,255,0,0.05)]" 
             : reportType === "weekly" 
               ? "bg-neon-blue/5 shadow-[inset_0_0_20px_rgba(0,243,255,0.03)]" 
-              : "bg-neon-orange/5 shadow-[inset_0_0_20px_rgba(255,157,0,0.03)]";
+              : reportType === "decade"
+                ? "bg-neon-orange/5 shadow-[inset_0_0_20px_rgba(255,157,0,0.03)]"
+                : "bg-neon-green/5 shadow-[inset_0_0_20px_rgba(0,255,0,0.03)]";
 
           return (
             <motion.div
@@ -385,7 +397,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-3">
-                    <UserIcon size={14} className={isMine ? "text-neon-green" : (reportType === "weekly" ? "text-neon-blue" : "text-neon-orange")} />
+                    <UserIcon size={14} className={isMine ? "text-neon-green" : (reportType === "weekly" ? "text-neon-blue" : reportType === "decade" ? "text-neon-orange" : "text-neon-green")} />
                     <div className="flex flex-col">
                       <span className={`font-bold leading-none ${isMine ? "text-neon-green" : "text-gray-200"}`}>
                         {report.UserName} {isMine && "(自分)"}
@@ -399,7 +411,9 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                       <span className="text-[10px] font-digital text-gray-600">
                         {reportType === "weekly" 
                           ? (isNaN(new Date(report.TargetDate).getTime()) ? "日付不明" : new Date(report.TargetDate).toLocaleDateString()) 
-                          : report.TargetDecade}
+                          : reportType === "decade" 
+                            ? report.TargetDecade 
+                            : (isNaN(new Date(report.SubmittedAt || report.Timestamp).getTime()) ? "日付不明" : new Date(report.SubmittedAt || report.Timestamp).toLocaleDateString())}
                       </span>
                     </div>
                     <span className={`text-[8px] font-digital uppercase tracking-widest px-2 py-0.5 rounded border ${isMine ? "border-neon-green/30 text-neon-green/70" : reportType === "weekly" ? "border-neon-blue/30 text-neon-blue/70" : reportType === "decade" ? "border-neon-orange/30 text-neon-orange/70" : "border-neon-green/30 text-neon-green/70"}`}>
@@ -407,9 +421,20 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                     </span>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 line-clamp-1">
-                  {reportType === "weekly" ? report.Goal : reportType === "decade" ? report.AreaFact : report.textAreaSummary || "近況報告"}
-                </p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-gray-400 line-clamp-1">
+                    {reportType === "weekly" ? report.Goal : reportType === "decade" ? report.AreaFact : report.textAreaSummary || "近況報告"}
+                  </p>
+                  {reportType === "am_status" && report.storeReports && report.storeReports.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {report.storeReports.map((s: any, i: number) => (
+                        <span key={i} className="text-[8px] bg-neon-green/10 text-neon-green px-1.5 py-0.5 rounded border border-neon-green/20">
+                          {s.storeName}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 
                 {/* Interaction Summary */}
                 <div className="flex flex-wrap gap-4 mt-4 items-center">
@@ -437,8 +462,8 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                     <div className="flex gap-2">
                       {report.AM_Comment && (
                         <div className="flex items-center gap-1">
-                          <MessageSquare size={10} className="text-neon-blue" />
-                          <span className="text-[8px] text-neon-blue font-digital uppercase tracking-widest">
+                          <MessageSquare size={10} className="text-neon-green" />
+                          <span className="text-[8px] text-neon-green font-digital uppercase tracking-widest">
                             {report.AM_Comment_Name || 'AM'}がコメント
                           </span>
                         </div>
@@ -537,9 +562,9 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                           <div className="space-y-3 pt-4 border-t border-white/5">
                             <h4 className="text-[10px] font-digital uppercase tracking-widest text-gray-500">フィードバック</h4>
                             {report.AM_Comment && (
-                              <div className="bg-neon-blue/5 p-3 rounded-xl border border-neon-blue/20">
+                              <div className="bg-neon-green/5 p-3 rounded-xl border border-neon-green/20">
                                 <div className="flex justify-between items-center mb-1">
-                                  <span className="text-[10px] font-bold text-neon-blue">
+                                  <span className="text-[10px] font-bold text-neon-green">
                                     {report.AM_Comment_Name || 'AM'}
                                   </span>
                                 </div>
@@ -562,23 +587,32 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                       {/* Weekly Comments (AM/BM Only) */}
                       {(user.Role === "AM" || user.Role === "BM") && (
                         <div className="pt-6 border-t border-white/5">
-                          <label className="text-[10px] text-neon-orange font-digital uppercase tracking-widest block mb-2">
-                            {user.Name} ({user.Role}) としてフィードバックを送信
-                          </label>
-                          <textarea
-                            value={feedbackComment}
-                            onChange={(e) => setFeedbackComment(e.target.value)}
-                            className="w-full bg-black/50 border border-gray-800 rounded-lg p-4 focus:border-neon-orange outline-none transition-all h-24 text-gray-200 text-sm"
-                            placeholder="具体的なアドバイスを入力してください..."
-                          />
-                          <button
-                            onClick={() => handleSaveFeedback('weekly')}
-                            disabled={isLoading || !feedbackComment}
-                            className="mt-4 w-full bg-transparent border border-neon-orange text-neon-orange py-3 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-neon-orange hover:text-black transition-all disabled:opacity-50 font-digital flex items-center justify-center gap-2 text-xs"
-                          >
-                            <Send size={14} />
-                            送信
-                          </button>
+                          {(() => {
+                            const feedbackColor = user.Role === "AM" ? "neon-green" : "neon-orange";
+                            const feedbackColorHex = user.Role === "AM" ? "rgba(0, 255, 0, 0.4)" : "rgba(255, 157, 0, 0.4)";
+                            return (
+                              <>
+                                <label className={`text-[10px] text-${feedbackColor} font-digital uppercase tracking-widest block mb-2`}>
+                                  {user.Name} ({user.Role}) としてフィードバックを送信
+                                </label>
+                                <textarea
+                                  value={feedbackComment}
+                                  onChange={(e) => setFeedbackComment(e.target.value)}
+                                  className={`w-full bg-black/50 border border-gray-800 rounded-lg p-4 focus:border-${feedbackColor} outline-none transition-all h-24 text-gray-200 text-sm`}
+                                  placeholder="具体的なアドバイスを入力してください..."
+                                />
+                                <button
+                                  onClick={() => handleSaveFeedback('weekly')}
+                                  disabled={isLoading || !feedbackComment}
+                                  className={`mt-4 w-full bg-transparent border border-${feedbackColor} text-${feedbackColor} py-3 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-${feedbackColor} hover:text-black transition-all disabled:opacity-50 font-digital flex items-center justify-center gap-2 text-xs`}
+                                  style={{ boxShadow: feedbackComment ? `0 0 15px ${feedbackColorHex}` : 'none' }}
+                                >
+                                  <Send size={14} />
+                                  送信
+                                </button>
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -658,12 +692,69 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                           )}
                           {report.storeReports && report.storeReports.length > 0 && (
                             <section>
-                              <label className="text-[10px] text-neon-blue font-digital uppercase tracking-widest block mb-2 mt-4 border-t border-white/10 pt-4">店舗別報告 ({report.storeReports.length}店舗)</label>
-                              <div className="space-y-2">
+                              <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-2 mt-4 border-t border-white/10 pt-4">店舗別報告 ({report.storeReports.length}店舗)</label>
+                              <div className="space-y-4">
                                 {report.storeReports.map((store: any, idx: number) => (
-                                  <div key={idx} className="bg-white/5 p-3 rounded-lg border border-white/10">
-                                    <h5 className="text-xs font-bold text-neon-blue mb-1">{store.storeName}</h5>
-                                    <p className="text-[10px] text-gray-400 line-clamp-2">{store.textThisMonthFocus || "注力ポイント未入力"}</p>
+                                  <div key={idx} className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3">
+                                    <h5 className="text-sm font-bold text-neon-green border-b border-white/5 pb-2">{store.storeName}</h5>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <label className="text-[9px] text-gray-500 uppercase tracking-tighter">先月の課題解決/振り返り</label>
+                                        <div className="space-y-1">
+                                          <p className="text-[10px] text-gray-500">【課題解決・取り組み】</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textLastMonthGoals || "未入力"}</p>
+                                          <p className="text-[10px] text-gray-500 mt-2">【学び・反省点や成果】</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textLastMonthResults || "未入力"}</p>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[9px] text-gray-500 uppercase tracking-tighter">今月の課題解決への取り組み</label>
+                                        <div className="space-y-1">
+                                          <p className="text-[10px] text-gray-500">【課題解決・取り組み】</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textThisMonthGoals || "未入力"}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <label className="text-[9px] text-gray-500 uppercase tracking-tighter">今月の注力ポイント</label>
+                                      <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textThisMonthFocus || "未入力"}</p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <label className="text-[9px] text-gray-500 uppercase tracking-tighter">販促・キャンペーン</label>
+                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textPromo || "未入力"}</p>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[9px] text-gray-500 uppercase tracking-tighter">設備・備品</label>
+                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textFacility || "未入力"}</p>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <label className="text-[9px] text-gray-500 uppercase tracking-tighter">売上実績</label>
+                                      <div className="bg-black/20 p-3 rounded-lg border border-white/5 grid grid-cols-3 gap-2 text-center">
+                                        <div>
+                                          <p className="text-[8px] text-gray-500 uppercase">前期実績</p>
+                                          <p className="text-xs text-neon-green font-digital">{store.textSalesPrevious || 0}<span className="text-[8px] ml-0.5">名</span></p>
+                                        </div>
+                                        <div>
+                                          <p className="text-[8px] text-gray-500 uppercase">今期実績</p>
+                                          <p className="text-xs text-neon-green font-digital">{store.textSalesCurrent || 0}<span className="text-[8px] ml-0.5">名</span></p>
+                                        </div>
+                                        <div>
+                                          <p className="text-[8px] text-gray-500 uppercase">予算</p>
+                                          <p className="text-xs text-neon-green font-digital">{store.textSalesBudget || 0}<span className="text-[8px] ml-0.5">名</span></p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <label className="text-[9px] text-gray-500 uppercase tracking-tighter">スタッフの様子 (店舗)</label>
+                                      <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textStaffStore || "未入力"}</p>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -672,15 +763,18 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
 
                           {report.hrEvents && report.hrEvents.length > 0 && (
                             <section>
-                              <label className="text-[10px] text-neon-red font-digital uppercase tracking-widest block mb-2 mt-4 border-t border-white/10 pt-4">入社・退職・休職 ({report.hrEvents.length}件)</label>
+                              <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-2 mt-4 border-t border-white/10 pt-4">入社・退職・休職 ({report.hrEvents.length}件)</label>
                               <div className="space-y-2">
                                 {report.hrEvents.map((event: any, idx: number) => (
-                                  <div key={idx} className="bg-neon-red/5 p-2 rounded-lg border border-neon-red/10">
-                                    <div className="flex justify-between items-center mb-1">
-                                      <span className="text-[10px] font-bold text-neon-red">{event.type}</span>
-                                      <span className="text-[8px] text-gray-500">{event.date}</span>
+                                  <div key={idx} className="bg-neon-green/5 p-3 rounded-xl border border-neon-green/10">
+                                    <div className="flex justify-between items-center mb-2">
+                                      <span className="text-xs font-bold text-neon-green">{event.type}</span>
+                                      <span className="text-[10px] text-gray-500 font-digital">{event.date}</span>
                                     </div>
-                                    <p className="text-[10px] text-gray-300">{event.store} / {event.name}</p>
+                                    <p className="text-xs text-gray-200 mb-1">{event.store} / {event.name}</p>
+                                    {event.details && (
+                                      <p className="text-[10px] text-gray-400 whitespace-pre-wrap mt-2 bg-black/20 p-2 rounded border border-white/5">{event.details}</p>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -689,18 +783,49 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
 
                           {report.interviewEvents && report.interviewEvents.length > 0 && (
                             <section>
-                              <label className="text-[10px] text-yellow-400 font-digital uppercase tracking-widest block mb-2 mt-4 border-t border-white/10 pt-4">スタッフ面談 ({report.interviewEvents.length}件)</label>
-                              <div className="space-y-2">
+                              <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-2 mt-4 border-t border-white/10 pt-4">スタッフ面談 ({report.interviewEvents.length}件)</label>
+                              <div className="space-y-3">
                                 {report.interviewEvents.map((event: any, idx: number) => (
-                                  <div key={idx} className="bg-yellow-400/5 p-2 rounded-lg border border-yellow-400/10">
-                                    <div className="flex justify-between items-center mb-1">
-                                      <span className="text-[10px] font-bold text-yellow-400">{event.interviewType || "面談"} ({event.importance})</span>
-                                      <span className="text-[8px] text-gray-500">{event.date}</span>
+                                  <div key={idx} className="bg-neon-green/5 p-4 rounded-xl border border-neon-green/10 space-y-3">
+                                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full ${event.importance === "高" ? "bg-neon-red" : event.importance === "中" ? "bg-neon-orange" : "bg-neon-blue"}`} />
+                                        <span className="text-xs font-bold text-neon-green">{event.interviewType || "面談"}</span>
+                                      </div>
+                                      <span className="text-[10px] text-gray-500 font-digital">{event.date}</span>
                                     </div>
-                                    <p className="text-[10px] text-gray-300">{event.store} / {event.name}</p>
-                                    {event.interviewer && (
-                                      <p className="text-[8px] text-gray-500 mt-1">面談者: {event.interviewer}</p>
-                                    )}
+                                    
+                                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                      <p className="text-gray-300"><span className="text-gray-500">店舗:</span> {event.store}</p>
+                                      <p className="text-gray-300"><span className="text-gray-500">対象:</span> {event.name}</p>
+                                      <p className="text-gray-300"><span className="text-gray-500">面談者:</span> {event.interviewer}</p>
+                                      <p className="text-gray-300"><span className="text-gray-500">状況:</span> {event.status}</p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <label className="text-[9px] text-gray-500 uppercase tracking-tighter">面談内容</label>
+                                      <div className="space-y-3">
+                                        <div>
+                                          <p className="text-[10px] text-gray-500 mb-1">【主な内容】</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap bg-black/20 p-2 rounded border border-white/5">{event.contentMain || "未入力"}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-[10px] text-gray-500 mb-1">【懸念事項/未解決事項】</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap bg-neon-red/5 p-2 rounded border border-neon-red/10">{event.contentConcerns || "未入力"}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <label className="text-[9px] text-gray-500 uppercase tracking-tighter">次回アクション</label>
+                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{event.contentNextAction || "未入力"}</p>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[9px] text-gray-500 uppercase tracking-tighter">所感</label>
+                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{event.contentImpression || "未入力"}</p>
+                                      </div>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -734,32 +859,43 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
 
                       {/* Comments List */}
                       <div className="space-y-4">
-                        {report.Comments?.map((c: any) => (
-                          <div key={c.CommentID} className="bg-white/5 p-3 rounded-xl border border-white/5">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-[10px] font-bold text-neon-blue">{c.UserName} ({c.Role})</span>
-                              <span className="text-[8px] font-digital text-gray-600">{new Date(c.CreatedAt).toLocaleString()}</span>
+                        {report.Comments?.map((c: any) => {
+                          const commentColor = c.Role === "AM" ? "neon-green" : c.Role === "BM" ? "neon-orange" : "neon-blue";
+                          return (
+                            <div key={c.CommentID} className={`bg-white/5 p-3 rounded-xl border border-${commentColor}/20`}>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className={`text-[10px] font-bold text-${commentColor}`}>{c.UserName} ({c.Role})</span>
+                                <span className="text-[8px] font-digital text-gray-600">{new Date(c.CreatedAt).toLocaleString()}</span>
+                              </div>
+                              <p className="text-xs text-gray-300">{c.Text}</p>
                             </div>
-                            <p className="text-xs text-gray-300">{c.Text}</p>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {/* Add Comment */}
                       <div className="flex gap-2">
-                        <input
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          className="flex-1 bg-black/50 border border-gray-800 rounded-lg px-4 py-2 focus:border-neon-blue outline-none transition-all text-xs text-gray-200"
-                          placeholder="コメントを追加..."
-                        />
-                        <button
-                          onClick={handleSaveComment}
-                          disabled={isLoading || !comment}
-                          className="p-2 bg-neon-blue text-black rounded-lg hover:shadow-[0_0_10px_rgba(0,243,255,0.4)] transition-all disabled:opacity-50"
-                        >
-                          <Send size={16} />
-                        </button>
+                        {(() => {
+                          const myCommentColor = user.Role === "AM" ? "neon-green" : user.Role === "BM" ? "neon-orange" : "neon-blue";
+                          const myCommentColorHex = user.Role === "AM" ? "rgba(0, 255, 0, 0.4)" : user.Role === "BM" ? "rgba(255, 157, 0, 0.4)" : "rgba(0, 243, 255, 0.4)";
+                          return (
+                            <>
+                              <input
+                                value={comment}
+                                onChange={(e) => setComment(e.target.value)}
+                                className={`flex-1 bg-black/50 border border-gray-800 rounded-lg px-4 py-2 focus:border-${myCommentColor} outline-none transition-all text-xs text-gray-200`}
+                                placeholder="コメントを追加..."
+                              />
+                              <button
+                                onClick={handleSaveComment}
+                                disabled={isLoading || !comment}
+                                className={`p-2 bg-${myCommentColor} text-black rounded-lg hover:shadow-[0_0_10px_${myCommentColorHex}] transition-all disabled:opacity-50`}
+                              >
+                                <Send size={16} />
+                              </button>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </motion.div>

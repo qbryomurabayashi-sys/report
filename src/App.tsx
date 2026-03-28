@@ -12,22 +12,7 @@ import { ProjectManagement } from "./components/ProjectManagement";
 import { Settings } from "./components/Settings";
 import { VersionInfo } from "./components/VersionInfo";
 import { User, AppState } from "./types";
-
-// Helper for web push
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
+import { subscribeToPush } from "./lib/notifications";
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>("loading");
@@ -70,32 +55,6 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, []);
-
-  const subscribeToPush = async (userId: string) => {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-
-        const publicVapidKey = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYpPNs_Zqk";
-        
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
-        });
-
-        await fetch('/api/subscribe', {
-          method: 'POST',
-          body: JSON.stringify({ subscription, userId }),
-          headers: {
-            'content-type': 'application/json'
-          }
-        });
-        console.log("Push notification subscribed for user:", userId);
-      } catch (err) {
-        console.error("Push subscription failed:", err);
-      }
-    }
-  };
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);

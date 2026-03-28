@@ -90,12 +90,12 @@ export function WeeklyForm({ user, onBack }: WeeklyFormProps) {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-neon-orange"
+          className="glass-card p-6 rounded-2xl mb-8 border-l-4 border-neon-blue"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Info size={14} className="text-neon-orange" />
-              <h3 className="text-[10px] font-digital text-neon-orange uppercase tracking-[0.2em]">前回の報告内容</h3>
+              <Info size={14} className="text-neon-blue" />
+              <h3 className="text-[10px] font-digital text-neon-blue uppercase tracking-[0.2em]">前回の報告内容</h3>
             </div>
             <span className="text-[8px] font-digital text-gray-600">{new Date(lastReport.TargetDate).toLocaleDateString()} の報告</span>
           </div>

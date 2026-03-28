@@ -19,8 +19,8 @@ app.use(express.json());
 
 // Web Push Setup
 // In a real app, these should be environment variables
-const publicVapidKey = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYpPNs_Zqk";
-const privateVapidKey = process.env.VAPID_PRIVATE_KEY || "8xV-oH7gG8T-Q8R-R8T-Q8R-R8T-Q8R-R8T-Q8R-R8T"; // Should be set in env
+const publicVapidKey = "BIJQObXWpMqW1nYXUX3b4icKnyLwcPNU2-qXJOUuUOX68wQ2BlYWyILatrP_LB2xyOzOfWih8Ott31nsdXuOYX0";
+const privateVapidKey = process.env.VAPID_PRIVATE_KEY || "TDprt5aw0JnL-pbIiDv06CB81BCty7bu8NSWM6a1xTw"; // Should be set in env
 
 try {
   webpush.setVapidDetails(
@@ -170,13 +170,17 @@ function invalidateGasCache(actionPrefix?: string) {
     console.log("GAS Cache fully invalidated");
   } else {
     let count = 0;
-    Object.keys(gasCache).forEach(key => {
+    const keysBefore = Object.keys(gasCache);
+    keysBefore.forEach(key => {
       if (key.includes(actionPrefix)) {
         delete gasCache[key];
         count++;
       }
     });
-    console.log(`GAS Cache invalidated for prefix ${actionPrefix} (${count} items)`);
+    console.log(`GAS Cache invalidated for prefix "${actionPrefix}". Removed ${count} items. Remaining keys: ${Object.keys(gasCache).length}`);
+    if (count > 0) {
+      console.log(`Invalidated keys: ${keysBefore.filter(k => k.includes(actionPrefix)).join(", ")}`);
+    }
   }
 }
 
@@ -383,11 +387,7 @@ app.get("/api/weeklyReports", async (req, res) => {
     }
   }
 
-  if (GAS_URL && !GAS_URL.includes("TODO")) {
-    console.error("GAS request failed or returned invalid data for weeklyReports");
-    return res.status(503).json({ error: "Google Sheetsからのデータ取得に失敗しました。しばらく時間をおいて再試行してください。" });
-  }
-
+  console.log("GAS request failed or returned invalid data for weeklyReports, falling back to local data.");
   const data = getData();
   let filtered = data.weeklyReports;
 
@@ -445,11 +445,7 @@ app.get("/api/decadeReports", async (req, res) => {
     }
   }
 
-  if (GAS_URL && !GAS_URL.includes("TODO")) {
-    console.error("GAS request failed or returned invalid data for decadeReports");
-    return res.status(503).json({ error: "Google Sheetsからのデータ取得に失敗しました。しばらく時間をおいて再試行してください。" });
-  }
-
+  console.log("GAS request failed or returned invalid data for decadeReports, falling back to local data.");
   const data = getData();
   let filtered = data.decadeReports;
 
@@ -506,11 +502,7 @@ app.get("/api/amStatusReports", async (req, res) => {
     }
   }
 
-  if (GAS_URL && !GAS_URL.includes("TODO")) {
-    console.error("GAS request failed or returned invalid data for amStatusReports");
-    return res.status(503).json({ error: "Google Sheetsからのデータ取得に失敗しました。しばらく時間をおいて再試行してください。" });
-  }
-
+  console.log("GAS request failed or returned invalid data for amStatusReports, falling back to local data.");
   const data = getData();
   let filtered = data.amStatusReports || [];
 
@@ -605,6 +597,7 @@ app.post("/api/saveWeeklyReport", async (req, res) => {
     };
     data.weeklyReports.push(newReport);
     saveData(data);
+    invalidateGasCache("Reports");
   } else {
     invalidateGasCache("Reports");
   }
@@ -644,6 +637,7 @@ app.post("/api/saveDecadeReport", async (req, res) => {
     };
     data.decadeReports.push(newReport);
     saveData(data);
+    invalidateGasCache("Reports");
   } else {
     invalidateGasCache("Reports");
   }
@@ -676,8 +670,9 @@ app.post("/api/saveAMStatusReport", async (req, res) => {
   const data = getData();
   const submitter = data.users.find((u: any) => String(u.UserID) === String(req.body.UserID));
 
-  // Handle local fallback if GAS fails
+  // Handle local fallback if GAS fails (connection error)
   if (!gasData) {
+    console.log("GAS connection failed, saving AM Status Report locally.");
     const newReport = {
       ...req.body,
       ReportID: Math.random().toString(36).substr(2, 9),
@@ -686,7 +681,8 @@ app.post("/api/saveAMStatusReport", async (req, res) => {
     if (!data.amStatusReports) data.amStatusReports = [];
     data.amStatusReports.push(newReport);
     saveData(data);
-  } else {
+    invalidateGasCache("Reports");
+  } else if (gasData.success) {
     invalidateGasCache("Reports");
   }
 

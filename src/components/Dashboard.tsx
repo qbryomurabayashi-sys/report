@@ -324,18 +324,18 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={() => onNavigate("am_status_form")}
-              className="glass-card p-6 rounded-2xl flex items-center justify-between group hover:border-neon-orange transition-all mt-4"
+              className="glass-card p-6 rounded-2xl flex items-center justify-between group hover:border-neon-green transition-all mt-4"
             >
               <div className="flex items-center gap-6">
-                <div className="p-4 bg-neon-orange/10 rounded-xl text-neon-orange group-hover:bg-neon-orange group-hover:text-black transition-all">
+                <div className="p-4 bg-neon-green/10 rounded-xl text-neon-green group-hover:bg-neon-green group-hover:text-black transition-all">
                   <MessageSquare size={24} />
                 </div>
                 <div className="text-left">
-                  <h3 className="font-bold text-lg group-hover:text-neon-orange transition-all">近況報告を書く</h3>
+                  <h3 className="font-bold text-lg group-hover:text-neon-green transition-all">近況報告を書く</h3>
                   <p className="text-[10px] text-gray-500 uppercase tracking-widest font-digital">AM用：日々の近況報告</p>
                 </div>
               </div>
-              <ChevronRight size={20} className="text-gray-700 group-hover:text-neon-orange transition-all" />
+              <ChevronRight size={20} className="text-gray-700 group-hover:text-neon-green transition-all" />
             </motion.button>
           </>
         )}

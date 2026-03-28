@@ -110,7 +110,14 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
   const allStores = useMemo(() => Array.from(new Set(Object.values(STORE_MASTER).flat())).sort(), []);
   const otherStores = useMemo(() => allStores.filter(s => !initialStores.includes(s)), [initialStores, allStores]);
 
-  const [storeReports, setStoreReports] = useState<StoreReport[]>([]);
+  const [storeReports, setStoreReports] = useState<StoreReport[]>(() => {
+    const saved = localStorage.getItem("am_status_draft_stores");
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [selectedStoreToAdd, setSelectedStoreToAdd] = useState("");
 
   const addStoreReport = () => {
@@ -138,13 +145,48 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
     setStoreReports(reports => reports.filter(r => r.id !== id));
   };
 
-  const [textAreaVision, setTextAreaVision] = useState("");
-  const [textAreaSummary, setTextAreaSummary] = useState("");
-  const [textManagerCondition, setTextManagerCondition] = useState("");
-  const [textOtherTopics, setTextOtherTopics] = useState("");
+  const [textAreaVision, setTextAreaVision] = useState(() => localStorage.getItem("am_status_draft_vision") || "");
+  const [textAreaSummary, setTextAreaSummary] = useState(() => localStorage.getItem("am_status_draft_summary") || "");
+  const [textManagerCondition, setTextManagerCondition] = useState(() => localStorage.getItem("am_status_draft_manager") || "");
+  const [textOtherTopics, setTextOtherTopics] = useState(() => localStorage.getItem("am_status_draft_other") || "");
   
-  const [hrEvents, setHrEvents] = useState<HrEvent[]>([]);
-  const [interviewEvents, setInterviewEvents] = useState<InterviewEvent[]>([]);
+  const [hrEvents, setHrEvents] = useState<HrEvent[]>(() => {
+    const saved = localStorage.getItem("am_status_draft_hr");
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [interviewEvents, setInterviewEvents] = useState<InterviewEvent[]>(() => {
+    const saved = localStorage.getItem("am_status_draft_interviews");
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const saveDraft = () => {
+    localStorage.setItem("am_status_draft_stores", JSON.stringify(storeReports));
+    localStorage.setItem("am_status_draft_vision", textAreaVision);
+    localStorage.setItem("am_status_draft_summary", textAreaSummary);
+    localStorage.setItem("am_status_draft_manager", textManagerCondition);
+    localStorage.setItem("am_status_draft_other", textOtherTopics);
+    localStorage.setItem("am_status_draft_hr", JSON.stringify(hrEvents));
+    localStorage.setItem("am_status_draft_interviews", JSON.stringify(interviewEvents));
+    alert("下書きを保存しました");
+  };
+
+  const clearDraft = () => {
+    localStorage.removeItem("am_status_draft_stores");
+    localStorage.removeItem("am_status_draft_vision");
+    localStorage.removeItem("am_status_draft_summary");
+    localStorage.removeItem("am_status_draft_manager");
+    localStorage.removeItem("am_status_draft_other");
+    localStorage.removeItem("am_status_draft_hr");
+    localStorage.removeItem("am_status_draft_interviews");
+  };
 
   const handleStoreChange = (id: string, field: keyof StoreReport, value: string) => {
     setStoreReports(reports => reports.map(r => r.id === id ? { ...r, [field]: value } : r));
@@ -166,7 +208,7 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
     setInterviewEvents([...interviewEvents, { 
       id: Date.now().toString(), date: '', importance: '中', store: '', name: '', 
       interviewer: '',
-      interviewType: '', status: '継続', contentMain: '', contentConcerns: '', 
+      interviewType: '評価面談', status: '継続', contentMain: '', contentConcerns: '', 
       contentNextAction: '', contentImpression: '' 
     }]);
   };
@@ -203,6 +245,7 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
 
       const data = await response.json();
       if (data.success) {
+        clearDraft();
         alert("近況報告を提出しました");
         onBack();
       } else {
@@ -221,11 +264,11 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
   return (
     <div className="container mx-auto px-4 pt-8 pb-32 max-w-4xl">
       <header className="flex items-center gap-4 mb-8">
-        <button onClick={onBack} className="p-3 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all">
+        <button onClick={onBack} className="p-3 glass-card rounded-xl text-gray-500 hover:text-neon-green transition-all">
           <ChevronLeft size={20} />
         </button>
         <div>
-          <h2 className="text-xl font-bold neon-text-orange font-display tracking-tight">AM近況報告作成</h2>
+          <h2 className="text-xl font-bold neon-text-green font-display tracking-tight">AM近況報告作成</h2>
           <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-digital">ブロック: {user.Area} / 報告者: {user.Name}</p>
         </div>
         <div className="ml-auto flex gap-2">
@@ -251,14 +294,14 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('store')}
-          className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'store' ? 'bg-neon-blue text-black shadow-[0_0_15px_rgba(0,240,255,0.4)]' : 'glass-card text-gray-400 hover:text-white'}`}
+          className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'store' ? 'bg-neon-green text-black shadow-[0_0_15px_rgba(0,255,0,0.4)]' : 'glass-card text-gray-400 hover:text-white'}`}
         >
           <Building2 size={16} className="inline-block mr-2" />
           店舗個別
         </button>
         <button
           onClick={() => setActiveTab('area')}
-          className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'area' ? 'bg-neon-orange text-black shadow-[0_0_15px_rgba(255,157,0,0.4)]' : 'glass-card text-gray-400 hover:text-white'}`}
+          className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'area' ? 'bg-neon-green text-black shadow-[0_0_15px_rgba(0,255,0,0.4)]' : 'glass-card text-gray-400 hover:text-white'}`}
         >
           <Users size={16} className="inline-block mr-2" />
           エリア全体
@@ -275,18 +318,23 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                   value={selectedStoreToAdd}
                   onChange={(e) => setSelectedStoreToAdd(e.target.value)}
                   placeholder="店舗名を入力または選択..."
-                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-neon-blue"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-neon-green"
                 />
                 <datalist id="store-suggestions">
-                  {initialStores.filter(s => !storeReports.some(r => r.storeName === s)).map(store => (
+                  {initialStores.map(store => (
                     <option key={store} value={store} />
                   ))}
+                  <optgroup label="他エリアの店舗">
+                    {otherStores.map(store => (
+                      <option key={store} value={store} />
+                    ))}
+                  </optgroup>
                 </datalist>
               </div>
               <button
                 onClick={addStoreReport}
                 disabled={!selectedStoreToAdd}
-                className="bg-neon-blue text-black px-6 py-3 rounded-lg font-bold disabled:opacity-50 hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all"
+                className="bg-neon-green text-black px-6 py-3 rounded-lg font-bold disabled:opacity-50 hover:shadow-[0_0_15px_rgba(0,255,0,0.4)] transition-all"
               >
                 追加
               </button>
@@ -301,7 +349,7 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
             ) : (
               storeReports.map((store) => (
                 <div key={store.id} className="glass-card rounded-2xl overflow-hidden border border-white/10">
-                  <div className="bg-neon-blue text-black p-3 flex justify-between items-center">
+                  <div className="bg-neon-green text-black p-3 flex justify-between items-center">
                     <button
                       onClick={() => setExpandedStoreId(expandedStoreId === store.id ? null : store.id)}
                       className="flex-1 flex items-center justify-between font-bold text-left"
@@ -325,18 +373,18 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                       {/* 先月の課題解決/振り返り */}
                       <div className="space-y-4">
                         <h4 className="font-bold flex items-center gap-2 text-gray-200">
-                          <span className="text-neon-blue">←</span> 先月の課題解決/振り返り
+                          <span className="text-neon-green">←</span> 先月の課題解決/振り返り
                         </h4>
                         <textarea
                           value={store.textLastMonthGoals}
                           onChange={(e) => handleStoreChange(store.id, 'textLastMonthGoals', e.target.value)}
-                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-blue outline-none min-h-[100px]"
+                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-green outline-none min-h-[100px]"
                           placeholder="【設定した課題解決・取り組み】"
                         />
                         <textarea
                           value={store.textLastMonthResults}
                           onChange={(e) => handleStoreChange(store.id, 'textLastMonthResults', e.target.value)}
-                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-blue outline-none min-h-[100px]"
+                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-green outline-none min-h-[100px]"
                           placeholder="【学び・反省点や成果】"
                         />
                       </div>
@@ -344,18 +392,18 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                       {/* 今月の課題解決への取り組み */}
                       <div className="space-y-4">
                         <h4 className="font-bold flex items-center gap-2 text-gray-200">
-                          <span className="text-neon-blue">→</span> 今月の課題解決への取り組み
+                          <span className="text-neon-green">→</span> 今月の課題解決への取り組み
                         </h4>
                         <textarea
                           value={store.textThisMonthGoals}
                           onChange={(e) => handleStoreChange(store.id, 'textThisMonthGoals', e.target.value)}
-                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-blue outline-none min-h-[100px]"
+                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-green outline-none min-h-[100px]"
                           placeholder="【課題解決・取り組み】"
                         />
                         <textarea
                           value={store.textThisMonthFocus}
                           onChange={(e) => handleStoreChange(store.id, 'textThisMonthFocus', e.target.value)}
-                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-blue outline-none min-h-[100px]"
+                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-green outline-none min-h-[100px]"
                           placeholder="【重点項目】"
                         />
                       </div>
@@ -380,9 +428,9 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                       </div>
 
                       {/* 売上実績 */}
-                      <div className="space-y-4 border-l-4 border-neon-orange pl-4">
+                      <div className="space-y-4 border-l-4 border-neon-green pl-4">
                         <h4 className="font-bold flex items-center gap-2 text-gray-200">
-                          <span className="text-neon-orange">📈</span> 売上実績
+                          <span className="text-neon-green">📈</span> 売上実績
                         </h4>
                         <div className="space-y-3 bg-white/5 p-4 rounded-xl">
                           <div className="flex items-center gap-4">
@@ -392,7 +440,7 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                                 type="number"
                                 value={store.textSalesPrevious}
                                 onChange={(e) => handleStoreChange(store.id, 'textSalesPrevious', e.target.value)}
-                                className="flex-1 bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-orange"
+                                className="flex-1 bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-green"
                               />
                               <span className="text-sm text-gray-400">名</span>
                             </div>
@@ -404,7 +452,7 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                                 type="number"
                                 value={store.textSalesCurrent}
                                 onChange={(e) => handleStoreChange(store.id, 'textSalesCurrent', e.target.value)}
-                                className="flex-1 bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-orange"
+                                className="flex-1 bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-green"
                               />
                               <span className="text-sm text-gray-400">名</span>
                             </div>
@@ -416,13 +464,13 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                                 type="number"
                                 value={store.textSalesBudget}
                                 onChange={(e) => handleStoreChange(store.id, 'textSalesBudget', e.target.value)}
-                                className="flex-1 bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-orange"
+                                className="flex-1 bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-green"
                               />
                               <span className="text-sm text-gray-400">名</span>
                             </div>
                           </div>
                         </div>
-                        <div className="bg-neon-orange/10 border border-neon-orange/30 p-3 rounded-lg text-xs text-neon-orange flex flex-wrap gap-2 items-center">
+                        <div className="bg-neon-green/10 border border-neon-green/30 p-3 rounded-lg text-xs text-neon-green flex flex-wrap gap-2 items-center">
                           <span>🧮</span>
                           <span>▼前期実績: {store.textSalesPrevious || 0}名 (前期比: {store.textSalesPrevious && store.textSalesCurrent ? Math.round((Number(store.textSalesCurrent) / Number(store.textSalesPrevious)) * 100) : '-'}%) /</span>
                           <span>▼今期実績: {store.textSalesCurrent || 0}名 (予算比: {store.textSalesBudget && store.textSalesCurrent ? Math.round((Number(store.textSalesCurrent) / Number(store.textSalesBudget)) * 100) : '-'}%) /</span>
@@ -431,14 +479,14 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                       </div>
 
                       {/* スタッフの様子 */}
-                      <div className="space-y-4 border-l-4 border-pink-500 pl-4">
+                      <div className="space-y-4 border-l-4 border-neon-green pl-4">
                         <h4 className="font-bold flex items-center gap-2 text-gray-200">
-                          <Users size={18} className="text-pink-500" /> スタッフの様子 (店舗)
+                          <Users size={18} className="text-neon-green" /> スタッフの様子 (店舗)
                         </h4>
                         <textarea
                           value={store.textStaffStore}
                           onChange={(e) => handleStoreChange(store.id, 'textStaffStore', e.target.value)}
-                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-pink-500 outline-none min-h-[100px]"
+                          className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-green outline-none min-h-[100px]"
                           placeholder="例：新人Aさんの技術向上が見られる。チームワークは良好。"
                         />
                       </div>
@@ -456,7 +504,7 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                   setActiveTab('area');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="flex items-center gap-2 bg-neon-orange/20 text-neon-orange border border-neon-orange/30 px-6 py-3 rounded-xl font-digital tracking-widest hover:bg-neon-orange hover:text-black transition-all"
+                className="flex items-center gap-2 bg-neon-green/20 text-neon-green border border-neon-green/30 px-6 py-3 rounded-xl font-digital tracking-widest hover:bg-neon-green hover:text-black transition-all"
               >
                 エリア報告へ進む <ChevronRight size={16} />
               </button>
@@ -469,136 +517,124 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
             <div className="flex items-center gap-2 mb-2">
               <button
                 onClick={() => setActiveTab('store')}
-                className="flex items-center gap-1 text-[10px] font-digital text-gray-500 hover:text-neon-blue transition-colors"
+                className="flex items-center gap-1 text-[10px] font-digital text-gray-500 hover:text-neon-green transition-colors"
               >
                 <ChevronLeft size={12} /> 店舗報告に戻る
               </button>
             </div>
-            <div className="glass-card p-6 rounded-2xl border-l-4 border-neon-blue">
+            <div className="glass-card p-6 rounded-2xl border-l-4 border-neon-green">
               <h3 className="text-sm font-bold text-gray-200 mb-4 flex items-center gap-2">
-                <span className="text-neon-blue">📄</span> AM総括
+                <span className="text-neon-green">📄</span> AM総括
               </h3>
               <div className="space-y-4">
                 <textarea
                   value={textAreaVision}
                   onChange={(e) => setTextAreaVision(e.target.value)}
-                  className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-blue outline-none min-h-[100px]"
+                  className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-green outline-none min-h-[100px]"
                   placeholder="◆エリアビジョン"
                 />
                 <textarea
                   value={textAreaSummary}
                   onChange={(e) => setTextAreaSummary(e.target.value)}
-                  className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-blue outline-none min-h-[100px]"
+                  className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-green outline-none min-h-[100px]"
                   placeholder="◆エリア取り組み/総括"
                 />
                 <textarea
                   value={textManagerCondition}
                   onChange={(e) => setTextManagerCondition(e.target.value)}
-                  className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-blue outline-none min-h-[100px]"
+                  className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-green outline-none min-h-[100px]"
                   placeholder="◆管轄店長,副店長様子"
                 />
               </div>
             </div>
 
-            <div className="glass-card p-6 rounded-2xl border-l-4 border-yellow-500">
+            <div className="glass-card p-6 rounded-2xl border-l-4 border-neon-green">
               <h3 className="text-sm font-bold text-gray-200 mb-4 flex items-center gap-2">
-                <span className="text-yellow-500">💡</span> その他トピックス
+                <span className="text-neon-green">💡</span> その他トピックス
               </h3>
               <textarea
                 value={textOtherTopics}
                 onChange={(e) => setTextOtherTopics(e.target.value)}
-                className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-yellow-500 outline-none min-h-[100px]"
+                className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200 focus:border-neon-green outline-none min-h-[100px]"
                 placeholder="例：来期の出店候補地（○○駅前）の競合調査結果と勝算について"
               />
             </div>
 
-            <div className="glass-card p-6 rounded-2xl border-l-4 border-neon-red">
+            <div className="glass-card p-6 rounded-2xl border-l-4 border-neon-green">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-bold text-neon-red flex items-center gap-2">
+                <h3 className="text-sm font-bold text-neon-green flex items-center gap-2">
                   <Users size={18} /> 入社・退職・休職
                 </h3>
-                <button onClick={addHrEvent} className="text-xs bg-neon-red/20 text-neon-red px-4 py-1.5 rounded-full flex items-center gap-1 hover:bg-neon-red/30 transition-all font-bold">
+                <button onClick={addHrEvent} className="text-xs bg-neon-green/20 text-neon-green px-4 py-1.5 rounded-full flex items-center gap-1 hover:bg-neon-green/30 transition-all font-bold">
                   <Plus size={14} /> 追加
                 </button>
               </div>
               <div className="space-y-4">
                 {hrEvents.map((event) => (
-                  <div key={event.id} className="bg-neon-red/5 p-4 rounded-xl border border-neon-red/20 relative">
+                  <div key={event.id} className="bg-neon-green/5 p-4 rounded-xl border border-neon-green/20 relative">
                     <button onClick={() => removeHrEvent(event.id)} className="absolute top-4 right-4 text-gray-500 hover:text-neon-red">
                       <Trash2 size={16} />
                     </button>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-8">
                       <div className="flex gap-2">
-                        <select value={event.type} onChange={(e) => updateHrEvent(event.id, 'type', e.target.value as any)} className="w-1/3 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-red">
+                        <select value={event.type} onChange={(e) => updateHrEvent(event.id, 'type', e.target.value as any)} className="w-1/3 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-green">
                           <option value="入社">入社</option>
                           <option value="退職">退職</option>
                           <option value="休職">休職</option>
                         </select>
-                        <input type="date" value={event.date} onChange={(e) => updateHrEvent(event.id, 'date', e.target.value)} className="w-2/3 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-red" />
+                        <input type="date" value={event.date} onChange={(e) => updateHrEvent(event.id, 'date', e.target.value)} className="w-2/3 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-green" />
                       </div>
                       <div className="flex gap-2">
-                        <select 
+                        <input 
+                          type="text"
+                          placeholder="店舗名"
                           value={event.store} 
                           onChange={(e) => updateHrEvent(event.id, 'store', e.target.value)} 
-                          className="w-1/2 bg-gray-800 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-neon-red"
-                        >
-                          <option value="" className="bg-gray-900">店舗選択</option>
-                          <optgroup label="担当エリア" className="bg-gray-900">
-                            {initialStores.map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
-                          </optgroup>
-                          <optgroup label="全店舗" className="bg-gray-900">
-                            {otherStores.map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
-                          </optgroup>
-                        </select>
-                        <input type="text" placeholder="氏名" value={event.name} onChange={(e) => updateHrEvent(event.id, 'name', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-red" />
+                          className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-green"
+                        />
+                        <input type="text" placeholder="氏名" value={event.name} onChange={(e) => updateHrEvent(event.id, 'name', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-green" />
                       </div>
                     </div>
-                    <textarea placeholder="詳細（理由など）" value={event.details} onChange={(e) => updateHrEvent(event.id, 'details', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-neon-red min-h-[80px]" />
+                    <textarea placeholder="詳細（理由など）" value={event.details} onChange={(e) => updateHrEvent(event.id, 'details', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-neon-green min-h-[80px]" />
                   </div>
                 ))}
                 {hrEvents.length === 0 && <p className="text-sm text-gray-500 text-center py-4">データがありません</p>}
               </div>
             </div>
 
-            <div className="glass-card p-6 rounded-2xl border-l-4 border-yellow-400">
+            <div className="glass-card p-6 rounded-2xl border-l-4 border-neon-green">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-bold text-yellow-400 flex items-center gap-2">
-                  <span className="text-yellow-400">💬</span> スタッフ面談
+                <h3 className="text-sm font-bold text-neon-green flex items-center gap-2">
+                  <span className="text-neon-green">💬</span> スタッフ面談
                 </h3>
-                <button onClick={addInterviewEvent} className="text-xs bg-yellow-400/20 text-yellow-400 px-4 py-1.5 rounded-full flex items-center gap-1 hover:bg-yellow-400/30 transition-all font-bold border border-yellow-400/50">
+                <button onClick={addInterviewEvent} className="text-xs bg-neon-green/20 text-neon-green px-4 py-1.5 rounded-full flex items-center gap-1 hover:bg-neon-green/30 transition-all font-bold border border-neon-green/50">
                   <Plus size={14} /> 追加
                 </button>
               </div>
               <div className="space-y-4">
                 {interviewEvents.map((event) => (
-                  <div key={event.id} className="bg-yellow-400/5 p-4 rounded-xl border border-yellow-400/20 relative">
+                  <div key={event.id} className="bg-neon-green/5 p-4 rounded-xl border border-neon-green/20 relative">
                     <button onClick={() => removeInterviewEvent(event.id)} className="absolute top-4 right-4 text-gray-500 hover:text-neon-red">
                       <Trash2 size={16} />
                     </button>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-8">
                       <div className="flex gap-2">
-                        <input type="date" value={event.date} onChange={(e) => updateInterviewEvent(event.id, 'date', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-yellow-400" />
+                        <input type="date" value={event.date} onChange={(e) => updateInterviewEvent(event.id, 'date', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-green" />
                         <div className="w-1/2 flex rounded-lg overflow-hidden border border-white/10">
-                          <button onClick={() => updateInterviewEvent(event.id, 'importance', '高')} className={`flex-1 text-xs font-bold ${event.importance === '高' ? 'bg-yellow-400 text-black' : 'bg-white/5 text-gray-400'}`}>高</button>
-                          <button onClick={() => updateInterviewEvent(event.id, 'importance', '中')} className={`flex-1 text-xs font-bold border-l border-r border-white/10 ${event.importance === '中' ? 'bg-yellow-400 text-black' : 'bg-white/5 text-gray-400'}`}>中</button>
-                          <button onClick={() => updateInterviewEvent(event.id, 'importance', '低')} className={`flex-1 text-xs font-bold ${event.importance === '低' ? 'bg-yellow-400 text-black' : 'bg-white/5 text-gray-400'}`}>低</button>
+                          <button onClick={() => updateInterviewEvent(event.id, 'importance', '高')} className={`flex-1 text-xs font-bold ${event.importance === '高' ? 'bg-neon-green text-black' : 'bg-white/5 text-gray-400'}`}>高</button>
+                          <button onClick={() => updateInterviewEvent(event.id, 'importance', '中')} className={`flex-1 text-xs font-bold border-l border-r border-white/10 ${event.importance === '中' ? 'bg-neon-green text-black' : 'bg-white/5 text-gray-400'}`}>中</button>
+                          <button onClick={() => updateInterviewEvent(event.id, 'importance', '低')} className={`flex-1 text-xs font-bold ${event.importance === '低' ? 'bg-neon-green text-black' : 'bg-white/5 text-gray-400'}`}>低</button>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <select 
+                        <input 
+                          type="text"
+                          placeholder="店舗名"
                           value={event.store} 
                           onChange={(e) => updateInterviewEvent(event.id, 'store', e.target.value)} 
-                          className="w-1/2 bg-gray-800 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-yellow-400"
-                        >
-                          <option value="" className="bg-gray-900">店舗選択</option>
-                          <optgroup label="担当エリア" className="bg-gray-900">
-                            {initialStores.map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
-                          </optgroup>
-                          <optgroup label="全店舗" className="bg-gray-900">
-                            {otherStores.map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
-                          </optgroup>
-                        </select>
+                          className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-green"
+                        />
                         <input type="text" placeholder="面談相手の氏名" value={event.name} onChange={(e) => updateInterviewEvent(event.id, 'name', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-yellow-400" />
                       </div>
                       <div className="flex gap-2 md:col-span-2">
@@ -606,7 +642,7 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                       </div>
                       <div className="flex gap-2 md:col-span-2">
                         <select value={event.interviewType} onChange={(e) => updateInterviewEvent(event.id, 'interviewType', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-yellow-400">
-                          <option value="">評価面談</option>
+                          <option value="評価面談">評価面談</option>
                           <option value="キャリア面談">キャリア面談</option>
                           <option value="1on1">1on1</option>
                           <option value="その他">その他</option>
@@ -630,11 +666,11 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                       </div>
                       <div>
                         <label className="text-xs text-gray-400 font-bold mb-1 block">【次回アクション】</label>
-                        <textarea value={event.contentNextAction} onChange={(e) => updateInterviewEvent(event.id, 'contentNextAction', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-yellow-400 min-h-[80px]" />
+                        <textarea value={event.contentNextAction} onChange={(e) => updateInterviewEvent(event.id, 'contentNextAction', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-neon-green min-h-[80px]" />
                       </div>
                       <div>
                         <label className="text-xs text-gray-400 font-bold mb-1 block">【所感】</label>
-                        <textarea value={event.contentImpression} onChange={(e) => updateInterviewEvent(event.id, 'contentImpression', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-yellow-400 min-h-[80px]" />
+                        <textarea value={event.contentImpression} onChange={(e) => updateInterviewEvent(event.id, 'contentImpression', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-neon-green min-h-[80px]" />
                       </div>
                     </div>
                   </div>
@@ -645,21 +681,34 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
           </div>
         )}
 
-        <div className="flex gap-4 mt-8">
+        <div className="flex flex-col gap-4 mt-8">
+          <div className="flex gap-4">
+            <button
+              onClick={saveDraft}
+              className="flex-1 bg-white/5 border border-white/10 text-gray-300 py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white/10 transition-all font-digital flex items-center justify-center gap-2"
+            >
+              <Save size={18} />
+              下書き保存
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="flex-1 bg-neon-green text-black py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:shadow-[0_0_20px_rgba(0,255,0,0.4)] transition-all disabled:opacity-50 font-digital flex items-center justify-center gap-2"
+            >
+              <Send size={18} />
+              {isSubmitting ? "送信中..." : "提出する"}
+            </button>
+          </div>
           <button
-            onClick={() => alert("下書き保存しました（デモ）")}
-            className="flex-1 bg-white/5 border border-white/10 text-gray-300 py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white/10 transition-all font-digital flex items-center justify-center gap-2"
+            onClick={() => {
+              if (confirm("下書きを破棄してよろしいですか？")) {
+                clearDraft();
+                window.location.reload();
+              }
+            }}
+            className="text-[10px] text-gray-600 hover:text-red-400 transition-all uppercase tracking-widest font-digital"
           >
-            <Save size={18} />
-            下書き保存
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="flex-1 bg-neon-orange text-black py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:shadow-[0_0_20px_rgba(255,157,0,0.4)] transition-all disabled:opacity-50 font-digital flex items-center justify-center gap-2"
-          >
-            <Send size={18} />
-            {isSubmitting ? "送信中..." : "提出する"}
+            [ 下書きを破棄 / CLEAR DRAFT ]
           </button>
         </div>
       </div>
