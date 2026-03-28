@@ -107,6 +107,9 @@ app.get('/api/weeklyReports', async (c) => {
   const gasUrl = c.env.GAS_URL;
   const query = c.req.query();
   const data = await callGas(gasUrl, "getWeeklyReports", query);
+  if (data && data.success === false) {
+    return c.json({ error: data.message, details: data.details }, 400);
+  }
   return c.json(data || []);
 });
 
@@ -114,6 +117,9 @@ app.get('/api/decadeReports', async (c) => {
   const gasUrl = c.env.GAS_URL;
   const query = c.req.query();
   const data = await callGas(gasUrl, "getDecadeReports", query);
+  if (data && data.success === false) {
+    return c.json({ error: data.message, details: data.details }, 400);
+  }
   return c.json(data || []);
 });
 
@@ -143,7 +149,10 @@ app.get('/api/amStatusReports', async (c) => {
   const gasUrl = c.env.GAS_URL;
   const query = c.req.query();
   const data = await callGas(gasUrl, "getAMStatusReports", query);
-  if (!data) return c.json([]);
+  if (data && data.success === false) {
+    return c.json({ error: data.message, details: data.details }, 400);
+  }
+  if (!data || !Array.isArray(data)) return c.json([]);
   return c.json(data);
 });
 
@@ -244,25 +253,35 @@ app.delete('/api/projects/:id', async (c) => {
 app.get('/api/members', async (c) => {
   const envGasUrl = c.env.GAS_URL;
   const data = await callGas(envGasUrl, "getMembers");
-  return c.json(data || []);
+  if (data && data.success === false) {
+    return c.json({ error: data.message, details: data.details }, 400);
+  }
+  if (!data || !Array.isArray(data)) return c.json([]);
+  return c.json(data);
 });
 
 app.get('/api/notifications/count', async (c) => {
   const envGasUrl = c.env.GAS_URL;
   const query = c.req.query();
   const data = await callGas(envGasUrl, "getNotifications", query);
+  if (data && data.success === false) {
+    return c.json({ count: 0, error: data.message, details: data.details }, 400);
+  }
   if (Array.isArray(data)) {
     const unread = data.filter((n: any) => !n.IsRead).length;
     return c.json({ count: unread });
   }
-  return c.json({ count: 0, error: "通知データの取得に失敗しました", details: data });
+  return c.json({ count: 0 });
 });
 
 app.get('/api/notifications', async (c) => {
   const envGasUrl = c.env.GAS_URL;
   const query = c.req.query();
   const data = await callGas(envGasUrl, "getNotifications", query);
-  if (!data) return c.json([]);
+  if (data && data.success === false) {
+    return c.json({ error: data.message, details: data.details }, 400);
+  }
+  if (!data || !Array.isArray(data)) return c.json([]);
   return c.json(data);
 });
 

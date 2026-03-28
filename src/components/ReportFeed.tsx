@@ -20,7 +20,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-   const fetchReports = async (refresh = false) => {
+    const fetchReports = async (refresh = false) => {
     setIsLoading(true);
     setError("");
     try {
@@ -34,13 +34,22 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "データの取得に失敗しました");
+        throw new Error(data.error || data.message || "データの取得に失敗しました");
       }
+      
+      if (!Array.isArray(data)) {
+        console.error(`Expected array but got:`, data);
+        setReports([]);
+        setError("データの形式が正しくありません。GASの設定を確認してください。");
+        return;
+      }
+
       console.log(`Fetched ${data.length} ${reportType} reports:`, data);
       setReports(data);
     } catch (err: any) {
       console.error("Fetch reports failed:", err);
       setError(err.message);
+      setReports([]);
     } finally {
       setIsLoading(false);
     }
@@ -57,11 +66,11 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
     setComment("");
   }, [user, reportType]);
 
-  const filteredReports = reports.filter(r => {
+  const filteredReports = Array.isArray(reports) ? reports.filter(r => {
     if (filter === "mine") return String(r.UserID) === String(user.UserID);
     if (filter === "others") return String(r.UserID) !== String(user.UserID);
     return true;
-  });
+  }) : [];
 
   const handleSaveComment = async () => {
     if (!selectedReport || !comment) return;
@@ -99,7 +108,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
           reportId: reportId,
           userId: user.UserID,
           role: user.Role,
-          text: commentText
+          comment: commentText
         }),
       });
       const data = await response.json();
@@ -135,7 +144,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
       const response = await fetch("/api/toggleLike", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId, userId: user.UserID }),
+        body: JSON.stringify({ reportId, userId: user.UserID, type: reportType }),
       });
       const data = await response.json();
       if (!data.success) {

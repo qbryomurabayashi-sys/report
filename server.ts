@@ -70,6 +70,14 @@ function notifyUsers(userIds: string[], payload: any) {
   }
 
   userIds.forEach(uid => {
+    // Persist to GAS for notification center
+    callGas('addNotification', {
+      userId: uid,
+      title: payload.title,
+      body: payload.body,
+      url: payload.url || ""
+    }, false);
+
     const subs = subscriptions[uid] || [];
     subs.forEach(sub => {
       webpush.sendNotification(sub, JSON.stringify(payload)).catch(err => {
@@ -319,6 +327,11 @@ app.get("/api/users", async (req, res) => {
   res.json(data.users);
 });
 
+app.post("/api/setup", async (req, res) => {
+  const gasData = await callGas("setup");
+  res.json(gasData || { success: false, message: "GAS connection failed" });
+});
+
 app.post("/api/login", async (req, res) => {
   const { userId, pin } = req.body;
   console.log(`Login attempt for UserID: ${userId}`);
@@ -529,13 +542,13 @@ app.get("/api/amStatusReports", async (req, res) => {
 });
 
 app.post("/api/toggleLike", async (req, res) => {
-  const { reportId, userId } = req.body;
-  console.log(`Toggle like for ReportID: ${reportId}, UserID: ${userId}`);
-  const gasData = await callGas("toggleLike", { reportId, userId });
+  const { reportId, userId, type } = req.body;
+  console.log(`Toggle like for ReportID: ${reportId}, UserID: ${userId}, Type: ${type}`);
+  const gasData = await callGas("toggleLike", { reportId, userId, type });
   
   let liked = false;
   if (gasData) {
-    invalidateGasCache("Reports"); // Invalidate report caches
+    invalidateGasCache("Reports");
     liked = gasData.liked;
   } else {
     const data = getData();
@@ -565,7 +578,8 @@ app.post("/api/toggleLike", async (req, res) => {
       const liker = data.users.find((u: any) => String(u.UserID) === String(userId));
       notifyUsers([String(report.UserID)], {
         title: "いいね！されました",
-        body: `${liker?.Name || "誰か"}があなたの報告にいいね！しました。`
+        body: `${liker?.Name || "誰か"}があなたの報告にいいね！しました。`,
+        url: "/reports"
       });
     }
   }
@@ -573,62 +587,25 @@ app.post("/api/toggleLike", async (req, res) => {
   return res.json({ success: true, liked });
 });
 
-app.post("/api/addComment", async (req, res) => {
-  const { reportId, userId, role, text } = req.body;
-  const gasData = await callGas("addComment", { reportId, userId, role, text });
-  if (gasData) {
-    invalidateGasCache("Reports");
-    return res.json(gasData);
-  }
-
-  const data = getData();
-  if (!data.comments) data.comments = [];
-  const newComment = {
-    CommentID: Math.random().toString(36).substr(2, 9),
-    ReportID: reportId,
-    UserID: userId,
-    Role: role,
-    Text: text,
-    CreatedAt: new Date().toISOString()
-  };
-  data.comments.push(newComment);
-  saveData(data);
-
-  // Send push notification to report owner
-  const decadeReport = data.decadeReports.find((r: any) => String(r.ReportID) === String(reportId));
-  const weeklyReport = data.weeklyReports.find((r: any) => String(r.ReportID) === String(reportId));
-  const amStatusReport = data.amStatusReports?.find((r: any) => String(r.ReportID) === String(reportId));
-  const report = decadeReport || weeklyReport || amStatusReport;
-  
-  if (report && String(report.UserID) !== String(userId)) {
-    const commenter = data.users.find((u: any) => String(u.UserID) === String(userId));
-    notifyUsers([String(report.UserID)], {
-      title: "新しいコメント",
-      body: `${commenter?.Name || role}からコメントがつきました。`
-    });
-  }
-
-  res.json({ success: true });
-});
-
 app.post("/api/saveWeeklyReport", async (req, res) => {
   const gasData = await callGas("saveWeeklyReport", req.body);
-  if (gasData) {
+  
+  const data = getData();
+  const submitter = data.users.find((u: any) => String(u.UserID) === String(req.body.UserID));
+
+  if (!gasData) {
+    const newReport = {
+      ...req.body,
+      ReportID: Math.random().toString(36).substr(2, 9),
+      SubmittedAt: new Date().toISOString()
+    };
+    data.weeklyReports.push(newReport);
+    saveData(data);
+  } else {
     invalidateGasCache("Reports");
-    return res.json(gasData);
   }
 
-  const data = getData();
-  const newReport = {
-    ...req.body,
-    ReportID: Math.random().toString(36).substr(2, 9),
-    SubmittedAt: new Date().toISOString()
-  };
-  data.weeklyReports.push(newReport);
-  saveData(data);
-
   // Notify peers and superiors
-  const submitter = data.users.find((u: any) => String(u.UserID) === String(req.body.UserID));
   if (submitter) {
     let notifyRoles: string[] = [];
     if (submitter.Role === "店長") notifyRoles = ["店長", "AM", "BM"];
@@ -641,31 +618,33 @@ app.post("/api/saveWeeklyReport", async (req, res) => {
     
     notifyUsers(usersToNotify, {
       title: "週報の提出",
-      body: `${submitter.Name}が週報を提出しました。`
+      body: `${submitter.Name}が週報を提出しました。`,
+      url: "/reports"
     });
   }
 
-  res.json({ success: true });
+  res.json(gasData || { success: true });
 });
 
 app.post("/api/saveDecadeReport", async (req, res) => {
   const gasData = await callGas("saveDecadeReport", req.body);
-  if (gasData) {
+  
+  const data = getData();
+  const submitter = data.users.find((u: any) => String(u.UserID) === String(req.body.UserID));
+
+  if (!gasData) {
+    const newReport = {
+      ...req.body,
+      ReportID: Math.random().toString(36).substr(2, 9),
+      SubmittedAt: new Date().toISOString()
+    };
+    data.decadeReports.push(newReport);
+    saveData(data);
+  } else {
     invalidateGasCache("Reports");
-    return res.json(gasData);
   }
 
-  const data = getData();
-  const newReport = {
-    ...req.body,
-    ReportID: Math.random().toString(36).substr(2, 9),
-    SubmittedAt: new Date().toISOString()
-  };
-  data.decadeReports.push(newReport);
-  saveData(data);
-
   // Notify peers and superiors
-  const submitter = data.users.find((u: any) => String(u.UserID) === String(req.body.UserID));
   if (submitter) {
     let notifyRoles: string[] = [];
     if (submitter.Role === "店長") notifyRoles = ["店長", "AM", "BM"];
@@ -678,32 +657,36 @@ app.post("/api/saveDecadeReport", async (req, res) => {
     
     notifyUsers(usersToNotify, {
       title: "旬報の提出",
-      body: `${submitter.Name}が旬報を提出しました。`
+      body: `${submitter.Name}が旬報を提出しました。`,
+      url: "/reports"
     });
   }
 
-  res.json({ success: true });
+  res.json(gasData || { success: true });
 });
 
 app.post("/api/saveAMStatusReport", async (req, res) => {
+  console.log("Saving AM Status Report...");
   const gasData = await callGas("saveAMStatusReport", req.body);
-  if (gasData) {
+  
+  const data = getData();
+  const submitter = data.users.find((u: any) => String(u.UserID) === String(req.body.UserID));
+
+  // Handle local fallback if GAS fails
+  if (!gasData) {
+    const newReport = {
+      ...req.body,
+      ReportID: Math.random().toString(36).substr(2, 9),
+      SubmittedAt: new Date().toISOString()
+    };
+    if (!data.amStatusReports) data.amStatusReports = [];
+    data.amStatusReports.push(newReport);
+    saveData(data);
+  } else {
     invalidateGasCache("Reports");
-    return res.json(gasData);
   }
 
-  const data = getData();
-  const newReport = {
-    ...req.body,
-    ReportID: Math.random().toString(36).substr(2, 9),
-    SubmittedAt: new Date().toISOString()
-  };
-  if (!data.amStatusReports) data.amStatusReports = [];
-  data.amStatusReports.push(newReport);
-  saveData(data);
-
-  // Notify peers and superiors
-  const submitter = data.users.find((u: any) => String(u.UserID) === String(req.body.UserID));
+  // Notify peers and superiors (Always do this)
   if (submitter) {
     let notifyRoles: string[] = [];
     if (submitter.Role === "AM") notifyRoles = ["AM", "BM"];
@@ -715,47 +698,110 @@ app.post("/api/saveAMStatusReport", async (req, res) => {
     
     notifyUsers(usersToNotify, {
       title: "AM近況報告の提出",
-      body: `${submitter.Name}が近況報告を提出しました。`
+      body: `${submitter.Name}が近況報告を提出しました。`,
+      url: "/reports"
     });
   }
 
-  res.json({ success: true });
+  res.json(gasData || { success: true, message: "Saved locally (GAS connection failed)" });
+});
+
+app.post("/api/addComment", async (req, res) => {
+  const { reportId, userId, role, comment } = req.body;
+  console.log(`Adding general comment for ReportID: ${reportId}, UserID: ${userId}`);
+  
+  const gasData = await callGas("addComment", { reportId, userId, role, comment });
+  
+  if (gasData && gasData.success) {
+    invalidateGasCache("Reports");
+    
+    const data = getData();
+    if (!data.comments) data.comments = [];
+    data.comments.push({
+      CommentID: gasData.commentId || Math.random().toString(36).substr(2, 9),
+      ReportID: reportId,
+      UserID: userId,
+      Role: role,
+      Text: comment,
+      CreatedAt: new Date().toISOString()
+    });
+    saveData(data);
+  }
+
+  res.json(gasData || { success: true });
 });
 
 app.post("/api/saveComment", async (req, res) => {
-  const { reportId, comment, role, userId } = req.body;
-  const gasData = await callGas("saveComment", { reportId, comment, role, userId });
-  if (gasData) {
-    invalidateGasCache("Reports");
-    return res.json(gasData);
-  }
-
+  const { reportId, comment, role, userId, type } = req.body;
+  console.log(`Saving feedback (AM/BM) for ReportID: ${reportId}, UserID: ${userId}, Type: ${type}`);
+  const gasData = await callGas("saveComment", { reportId, comment, role, userId, type });
+  
   const data = getData();
-  const reportIndex = data.weeklyReports.findIndex((r: any) => String(r.ReportID) === String(reportId));
-  if (reportIndex !== -1) {
-    if (role === "AM") {
-      data.weeklyReports[reportIndex].AM_Comment = comment;
-      data.weeklyReports[reportIndex].AM_Comment_UserID = userId;
-    }
-    if (role === "BM") {
-      data.weeklyReports[reportIndex].BM_Comment = comment;
-      data.weeklyReports[reportIndex].BM_Comment_UserID = userId;
-    }
-    saveData(data);
+  const commenter = data.users.find((u: any) => String(u.UserID) === String(userId));
 
-    // Send push notification to report owner
-    const report = data.weeklyReports[reportIndex];
-    if (String(report.UserID) !== String(userId)) {
-      const commenter = data.users.find((u: any) => String(u.UserID) === String(userId));
+  // Find the report to get the author
+  let report: any = null;
+  let reportList: any[] = [];
+  
+  if (type === 'weekly') reportList = data.weeklyReports;
+  else if (type === 'decade') reportList = data.decadeReports;
+  else if (type === 'am_status') reportList = data.amStatusReports || [];
+
+  const reportIndex = reportList.findIndex((r: any) => String(r.ReportID) === String(reportId));
+  
+  if (reportIndex !== -1) {
+    report = reportList[reportIndex];
+    if (!gasData) {
+      if (role === "AM") {
+        report.AM_Comment = comment;
+        report.AM_Comment_UserID = userId;
+        report.AM_Comment_Name = commenter?.Name;
+      } else if (role === "BM") {
+        report.BM_Comment = comment;
+        report.BM_Comment_UserID = userId;
+        report.BM_Comment_Name = commenter?.Name;
+      } else {
+        // Regular comment
+        if (!data.comments) data.comments = [];
+        data.comments.push({
+          CommentID: Math.random().toString(36).substr(2, 9),
+          ReportID: reportId,
+          UserID: userId,
+          Role: role,
+          Text: comment,
+          CreatedAt: new Date().toISOString()
+        });
+      }
+      saveData(data);
+    } else {
+      invalidateGasCache("Reports");
+    }
+
+    // Notify the author of the report
+    if (report && String(report.UserID) !== String(userId)) {
       notifyUsers([String(report.UserID)], {
-        title: "新しいフィードバック",
-        body: `${commenter?.Name || role}からフィードバックがつきました。`
+        title: role === "AM" || role === "BM" ? "フィードバックが届きました" : "新しいコメント",
+        body: `${commenter?.Name || role}から反応がありました。`,
+        url: "/reports"
       });
     }
 
-    res.json({ success: true });
+    res.json(gasData || { success: true });
   } else {
-    res.json({ success: false });
+    // If report not found in lists, it might be a general comment
+    if (!gasData) {
+      if (!data.comments) data.comments = [];
+      data.comments.push({
+        CommentID: Math.random().toString(36).substr(2, 9),
+        ReportID: reportId,
+        UserID: userId,
+        Role: role,
+        Text: comment,
+        CreatedAt: new Date().toISOString()
+      });
+      saveData(data);
+    }
+    res.json(gasData || { success: true });
   }
 });
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { User } from "../types";
 import { ChevronLeft, ChevronRight, Send, Save, Plus, Trash2, Building2, Users, ChevronDown, ChevronUp, X } from "lucide-react";
@@ -59,16 +59,32 @@ const STORE_MASTER: Record<string, string[]> = {
         "コースカベイサイドストアーズ店", "横浜市役所店", "サミット横浜岡野店"
     ],
     "神奈川北ブロック": [
-        "川崎アゼリア店", "武蔵小杉店", "溝の口店", "新百合ヶ丘店"
+        "川崎アゼリア店", "武蔵小杉店", "溝の口店", "新百合ヶ丘店", "登戸店", "向ヶ丘遊園店",
+        "たまプラーザ店", "あざみ野店", "青葉台店", "センター北店", "センター南店"
     ],
     "神奈川北": [
-        "川崎アゼリア店", "武蔵小杉店", "溝の口店", "新百合ヶ丘店"
+        "川崎アゼリア店", "武蔵小杉店", "溝の口店", "新百合ヶ丘店", "登戸店", "向ヶ丘遊園店",
+        "たまプラーザ店", "あざみ野店", "青葉台店", "センター北店", "センター南店"
     ],
     "東京多摩ブロック": [
-        "町田店", "八王子店", "立川店", "吉祥寺店"
+        "町田店", "八王子店", "立川店", "吉祥寺店", "多摩センター店", "調布店",
+        "府中店", "聖蹟桜ヶ丘店", "南大沢店", "橋本店", "相模原店"
     ],
     "東京多摩": [
-        "町田店", "八王子店", "立川店", "吉祥寺店"
+        "町田店", "八王子店", "立川店", "吉祥寺店", "多摩センター店", "調布店",
+        "府中店", "聖蹟桜ヶ丘店", "南大沢店", "橋本店", "相模原店"
+    ],
+    "東京": [
+        "新宿店", "渋谷店", "池袋店", "銀座店", "品川店", "上野店",
+        "秋葉原店", "六本木店", "恵比寿店", "中目黒店", "自由が丘店"
+    ],
+    "大阪": [
+        "梅田店", "難波店", "心斎橋店", "天王寺店", "京橋店",
+        "淀屋橋店", "本町店", "阿倍野店", "鶴橋店", "京橋店"
+    ],
+    "本部": [
+        "新宿店", "渋谷店", "池袋店", "銀座店", "品川店", "上野店",
+        "梅田店", "難波店", "心斎橋店", "天王寺店", "京橋店"
     ]
 };
 
@@ -77,7 +93,23 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
   const [expandedStoreId, setExpandedStoreId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const initialStores = STORE_MASTER[user.Area || ""] || Array.from(new Set(Object.values(STORE_MASTER).flat())).sort();
+  const getStoresForUser = () => {
+    const area = (user.Area || "").trim();
+    if (STORE_MASTER[area]) return STORE_MASTER[area];
+    
+    const areaWithoutBlock = area.replace("ブロック", "");
+    if (STORE_MASTER[areaWithoutBlock]) return STORE_MASTER[areaWithoutBlock];
+    
+    const areaWithBlock = area.endsWith("ブロック") ? area : area + "ブロック";
+    if (STORE_MASTER[areaWithBlock]) return STORE_MASTER[areaWithBlock];
+
+    return Array.from(new Set(Object.values(STORE_MASTER).flat())).sort();
+  };
+
+  const initialStores = useMemo(() => getStoresForUser(), [user.Area]);
+  const allStores = useMemo(() => Array.from(new Set(Object.values(STORE_MASTER).flat())).sort(), []);
+  const otherStores = useMemo(() => allStores.filter(s => !initialStores.includes(s)), [initialStores, allStores]);
+
   const [storeReports, setStoreReports] = useState<StoreReport[]>([]);
   const [selectedStoreToAdd, setSelectedStoreToAdd] = useState("");
 
@@ -195,6 +227,24 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
         <div>
           <h2 className="text-xl font-bold neon-text-orange font-display tracking-tight">AM近況報告作成</h2>
           <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-digital">ブロック: {user.Area} / 報告者: {user.Name}</p>
+        </div>
+        <div className="ml-auto flex gap-2">
+          <button 
+            onClick={async () => {
+              if (confirm("スプレッドシートの初期設定（シート作成）を実行しますか？")) {
+                try {
+                  const res = await fetch("/api/setup", { method: "POST" });
+                  const data = await res.json();
+                  alert(data.message || (data.success ? "設定完了" : "設定失敗"));
+                } catch (e) {
+                  alert("通信エラーが発生しました");
+                }
+              }
+            }}
+            className="text-[10px] bg-white/5 border border-white/10 text-gray-500 px-3 py-1 rounded-lg hover:bg-white/10 transition-all"
+          >
+            シート初期化
+          </button>
         </div>
       </header>
 
@@ -487,9 +537,18 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                         <input type="date" value={event.date} onChange={(e) => updateHrEvent(event.id, 'date', e.target.value)} className="w-2/3 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-red" />
                       </div>
                       <div className="flex gap-2">
-                        <select value={event.store} onChange={(e) => updateHrEvent(event.id, 'store', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-red">
-                          <option value="">店舗選択</option>
-                          {initialStores.map(s => <option key={s} value={s}>{s}</option>)}
+                        <select 
+                          value={event.store} 
+                          onChange={(e) => updateHrEvent(event.id, 'store', e.target.value)} 
+                          className="w-1/2 bg-gray-800 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-neon-red"
+                        >
+                          <option value="" className="bg-gray-900">店舗選択</option>
+                          <optgroup label="担当エリア" className="bg-gray-900">
+                            {initialStores.map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
+                          </optgroup>
+                          <optgroup label="全店舗" className="bg-gray-900">
+                            {otherStores.map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
+                          </optgroup>
                         </select>
                         <input type="text" placeholder="氏名" value={event.name} onChange={(e) => updateHrEvent(event.id, 'name', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-neon-red" />
                       </div>
@@ -527,9 +586,18 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <select value={event.store} onChange={(e) => updateInterviewEvent(event.id, 'store', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-yellow-400">
-                          <option value="">店舗選択</option>
-                          {initialStores.map(s => <option key={s} value={s}>{s}</option>)}
+                        <select 
+                          value={event.store} 
+                          onChange={(e) => updateInterviewEvent(event.id, 'store', e.target.value)} 
+                          className="w-1/2 bg-gray-800 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-yellow-400"
+                        >
+                          <option value="" className="bg-gray-900">店舗選択</option>
+                          <optgroup label="担当エリア" className="bg-gray-900">
+                            {initialStores.map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
+                          </optgroup>
+                          <optgroup label="全店舗" className="bg-gray-900">
+                            {otherStores.map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
+                          </optgroup>
                         </select>
                         <input type="text" placeholder="面談相手の氏名" value={event.name} onChange={(e) => updateInterviewEvent(event.id, 'name', e.target.value)} className="w-1/2 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-yellow-400" />
                       </div>
