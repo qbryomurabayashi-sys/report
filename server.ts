@@ -498,7 +498,11 @@ app.get("/api/amStatusReports", async (req, res) => {
     }
     if (Array.isArray(gasData)) {
       console.log(`Fetched ${gasData.length} AM status reports from GAS`);
-      return res.json(gasData);
+      let filteredGasData = gasData;
+      if (role === "店長") {
+        filteredGasData = [];
+      }
+      return res.json(filteredGasData);
     }
   }
 

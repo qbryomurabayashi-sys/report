@@ -61,10 +61,13 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
     } else {
       setReportType("am_status");
     }
+  }, [user]);
+
+  useEffect(() => {
     fetchReports();
     setSelectedReport(null);
     setComment("");
-  }, [user, reportType]);
+  }, [reportType]);
 
   const filteredReports = Array.isArray(reports) ? reports.filter(r => {
     if (filter === "mine") return String(r.UserID) === String(user.UserID);
@@ -310,6 +313,21 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
             <h3 className="text-[10px] font-digital text-neon-orange uppercase tracking-[0.2em]">AMの旬報フィード</h3>
           </div>
       )}
+
+      <div className="flex justify-end mb-4 px-2">
+        <button
+          onClick={() => fetchReports(true)}
+          disabled={isLoading}
+          className="text-[10px] font-digital uppercase tracking-widest text-gray-400 hover:text-white transition-colors disabled:opacity-50 flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10"
+        >
+          {isLoading ? (
+            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          )}
+          更新
+        </button>
+      </div>
 
       <div className="space-y-4">
         {isLoading && (

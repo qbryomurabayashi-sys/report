@@ -151,47 +151,51 @@ function login(userId, pin) {
 }
 
 function getWeeklyReports(userId, role, area) {
-  const reports = getSheetData('WeeklyReports');
-  const users = getSheetData('Users');
-  const likes = getSheetData('Likes');
-  const comments = getSheetData('Comments');
-  
-  let filtered = [];
-  
-  if (role === '店長') {
-    const allStoreManagers = users
-      .filter(u => u.Role === '店長')
-      .map(u => String(u.UserID));
-    filtered = reports.filter(r => allStoreManagers.includes(String(r.UserID)));
-  } else if (role === 'AM') {
-    const allStoreManagers = users
-      .filter(u => u.Role === '店長')
-      .map(u => String(u.UserID));
-    filtered = reports.filter(r => allStoreManagers.includes(String(r.UserID)));
-  } else {
-    filtered = reports;
+  try {
+    const reports = getSheetData('WeeklyReports');
+    const users = getSheetData('Users');
+    const likes = getSheetData('Likes');
+    const comments = getSheetData('Comments');
+    
+    let filtered = [];
+    
+    if (role === '店長') {
+      const allStoreManagers = users
+        .filter(u => String(u.Role).trim() === '店長')
+        .map(u => String(u.UserID).trim());
+      filtered = reports.filter(r => allStoreManagers.includes(String(r.UserID).trim()));
+    } else if (role === 'AM') {
+      const allStoreManagers = users
+        .filter(u => String(u.Role).trim() === '店長')
+        .map(u => String(u.UserID).trim());
+      filtered = reports.filter(r => allStoreManagers.includes(String(r.UserID).trim()));
+    } else {
+      filtered = reports;
+    }
+
+    filtered.sort((a, b) => new Date(b.SubmittedAt).getTime() - new Date(a.SubmittedAt).getTime());
+
+    return filtered.map(r => {
+      const user = users.find(u => String(u.UserID).trim() === String(r.UserID).trim());
+      return { 
+        ...r, 
+        UserName: user ? user.Name : '不明',
+        UserArea: user ? user.Area : '',
+        LikeCount: likes.filter(l => String(l.ReportID).trim() === String(r.ReportID).trim()).length,
+        LikerNames: likes.filter(l => String(l.ReportID).trim() === String(r.ReportID).trim()).map(l => {
+          const liker = users.find(u => String(u.UserID).trim() === String(l.UserID).trim());
+          return liker ? liker.Name : '不明';
+        }),
+        UserLiked: likes.some(l => String(l.ReportID).trim() === String(r.ReportID).trim() && String(l.UserID).trim() === String(userId).trim()),
+        Comments: comments.filter(c => String(c.ReportID).trim() === String(r.ReportID).trim()).map(c => {
+          const cUser = users.find(u => String(u.UserID).trim() === String(c.UserID).trim());
+          return { ...c, UserName: cUser ? cUser.Name : '不明' };
+        })
+      };
+    });
+  } catch (e) {
+    return { error: "getWeeklyReports error: " + e.toString(), stack: e.stack };
   }
-
-  filtered.sort((a, b) => new Date(b.SubmittedAt).getTime() - new Date(a.SubmittedAt).getTime());
-
-  return filtered.map(r => {
-    const user = users.find(u => String(u.UserID) === String(r.UserID));
-    return { 
-      ...r, 
-      UserName: user ? user.Name : '不明',
-      UserArea: user ? user.Area : '',
-      LikeCount: likes.filter(l => String(l.ReportID) === String(r.ReportID)).length,
-      LikerNames: likes.filter(l => String(l.ReportID) === String(r.ReportID)).map(l => {
-        const liker = users.find(u => String(u.UserID) === String(l.UserID));
-        return liker ? liker.Name : '不明';
-      }),
-      UserLiked: likes.some(l => String(l.ReportID) === String(r.ReportID) && String(l.UserID) === String(userId)),
-      Comments: comments.filter(c => String(c.ReportID) === String(r.ReportID)).map(c => {
-        const cUser = users.find(u => String(u.UserID) === String(c.UserID));
-        return { ...c, UserName: cUser ? cUser.Name : '不明' };
-      })
-    };
-  });
 }
 
 function saveWeeklyReport(data) {
@@ -243,34 +247,38 @@ function saveAMBMComment(reportId, role, comment, userId, type) {
 }
 
 function getDecadeReports(userId, role, area) {
-  const reports = getSheetData('DecadeReports');
-  const likes = getSheetData('Likes');
-  const comments = getSheetData('Comments');
-  const users = getSheetData('Users');
+  try {
+    const reports = getSheetData('DecadeReports');
+    const likes = getSheetData('Likes');
+    const comments = getSheetData('Comments');
+    const users = getSheetData('Users');
 
-  let filtered = [];
-  if (role === '店長') {
-    filtered = [];
-  } else {
-    filtered = reports;
+    let filtered = [];
+    if (String(role).trim() === '店長') {
+      filtered = [];
+    } else {
+      filtered = reports;
+    }
+
+    filtered.sort((a, b) => new Date(b.SubmittedAt).getTime() - new Date(a.SubmittedAt).getTime());
+
+    return filtered.map(r => {
+      const user = users.find(u => String(u.UserID).trim() === String(r.UserID).trim());
+      return {
+        ...r,
+        UserName: user ? user.Name : '不明',
+        UserArea: user ? user.Area : '',
+        LikeCount: likes.filter(l => String(l.ReportID).trim() === String(r.ReportID).trim()).length,
+        UserLiked: likes.some(l => String(l.ReportID).trim() === String(r.ReportID).trim() && String(l.UserID).trim() === String(userId).trim()),
+        Comments: comments.filter(c => String(c.ReportID).trim() === String(r.ReportID).trim()).map(c => {
+          const cUser = users.find(u => String(u.UserID).trim() === String(c.UserID).trim());
+          return { ...c, UserName: cUser ? cUser.Name : '不明' };
+        })
+      };
+    });
+  } catch (e) {
+    return { error: "getDecadeReports error: " + e.toString(), stack: e.stack };
   }
-
-  filtered.sort((a, b) => new Date(b.SubmittedAt).getTime() - new Date(a.SubmittedAt).getTime());
-
-  return filtered.map(r => {
-    const user = users.find(u => String(u.UserID) === String(r.UserID));
-    return {
-      ...r,
-      UserName: user ? user.Name : '不明',
-      UserArea: user ? user.Area : '',
-      LikeCount: likes.filter(l => String(l.ReportID) === String(r.ReportID)).length,
-      UserLiked: likes.some(l => String(l.ReportID) === String(r.ReportID) && String(l.UserID) === String(userId)),
-      Comments: comments.filter(c => String(c.ReportID) === String(r.ReportID)).map(c => {
-        const cUser = users.find(u => String(u.UserID) === String(c.UserID));
-        return { ...c, UserName: cUser ? cUser.Name : '不明' };
-      })
-    };
-  });
 }
 
 function toggleLike(reportId, userId, type) {
@@ -363,10 +371,14 @@ function saveAMStatusReport(data) {
 function getAMStatusReports(data) {
   try {
     const ss = getSS();
+    if (!ss) return { error: "Spreadsheet not found" };
+    
     const mainSheet = ss.getSheetByName("AMStatusReports");
-    if (!mainSheet) return [];
+    if (!mainSheet) return { error: "AMStatusReports sheet not found" };
     
     const mainValues = mainSheet.getDataRange().getValues();
+    if (mainValues.length <= 1) return [];
+    
     const mainHeaders = mainValues[0];
     const reports = mainValues.slice(1).map(row => {
       let obj = {};
@@ -389,9 +401,9 @@ function getAMStatusReports(data) {
     const hrHeaders = hrData[0] || [];
     const intHeaders = intData[0] || [];
 
-    const storeRows = storeData.slice(1);
-    const hrRows = hrData.slice(1);
-    const intRows = intData.slice(1);
+    const storeRows = storeData.length > 1 ? storeData.slice(1) : [];
+    const hrRows = hrData.length > 1 ? hrData.slice(1) : [];
+    const intRows = intData.length > 1 ? intData.slice(1) : [];
 
     const fullReports = reports.map(report => {
       const reportId = report.ReportID;
@@ -471,7 +483,7 @@ function getAMStatusReports(data) {
 
     return fullReports.reverse();
   } catch (e) {
-    return [];
+    return { error: "getAMStatusReports error: " + e.toString(), stack: e.stack };
   }
 }
 
