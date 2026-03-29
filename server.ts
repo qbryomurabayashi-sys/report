@@ -1074,12 +1074,10 @@ async function startServer() {
   });
 }
 
-// Local development only
-if (process.env.NODE_ENV !== "production") {
-  startServer();
-}
+// Local development and production entry point
+startServer();
 
-// Cloudflare Workers entry point
+// Cloudflare Workers entry point (Optional, if you want to keep it)
 export default {
   async fetch(request: Request, env: any, ctx: any) {
     // Set environment variables from Workers env

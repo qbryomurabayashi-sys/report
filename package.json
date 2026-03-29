@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "start": "tsx server.ts",
     "build": "npm run clean && vite build && esbuild src/worker.ts --bundle --outfile=dist/_worker.js --platform=browser --format=esm --minify",
     "preview": "vite preview",
     "clean": "rm -rf dist",

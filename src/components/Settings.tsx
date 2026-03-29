@@ -227,7 +227,7 @@ export function Settings({ user, onBack }: SettingsProps) {
         </section>
 
         <div className="p-4 text-center">
-          <p className="text-[10px] text-gray-600 uppercase tracking-widest font-digital">BTTF App Version 3.9.5</p>
+          <p className="text-[10px] text-gray-600 uppercase tracking-widest font-digital">BTTF App Version 4.0.0</p>
         </div>
       </div>
     </div>
