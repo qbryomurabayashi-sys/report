@@ -4,6 +4,18 @@ import path from "node:path";
 import fs from "node:fs";
 import fetch from "node-fetch";
 import webpush from "web-push";
+import admin from "firebase-admin";
+
+// Initialize Firebase Admin
+try {
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault(),
+    projectId: "gen-lang-client-0454608404"
+  });
+  console.log("Firebase Admin initialized successfully.");
+} catch (err) {
+  console.error("Failed to initialize Firebase Admin. Push notifications via FCM may not work.", err);
+}
 
 const app = express();
 const PORT = 3000;
@@ -80,13 +92,42 @@ function notifyUsers(userIds: string[], payload: any) {
 
     const subs = subscriptions[uid] || [];
     subs.forEach(sub => {
+      // Send via Web Push (legacy/fallback)
       webpush.sendNotification(sub, JSON.stringify(payload)).catch(err => {
-        console.error(`Push error for user ${uid}:`, err);
-        // If subscription is expired or invalid, remove it
+        console.error(`Web Push error for user ${uid}:`, err);
         if (err.statusCode === 410 || err.statusCode === 404) {
           subscriptions[uid] = subscriptions[uid].filter(s => s.endpoint !== sub.endpoint);
         }
       });
+
+      // Send via FCM if it's an FCM token
+      // In our subscribe logic, we're putting the token in sub.endpoint
+      if (sub.endpoint && !sub.endpoint.startsWith('https://')) {
+        const message = {
+          notification: {
+            title: payload.title,
+            body: payload.body,
+          },
+          token: sub.endpoint,
+          webpush: {
+            notification: {
+              icon: '/icon.svg',
+              badge: '/icon.svg',
+            },
+            fcmOptions: {
+              link: payload.url || '/'
+            }
+          }
+        };
+
+        admin.messaging().send(message)
+          .then((response) => {
+            console.log('Successfully sent FCM message:', response);
+          })
+          .catch((error) => {
+            console.error('Error sending FCM message:', error);
+          });
+      }
     });
   });
 }

@@ -568,7 +568,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                     {report.AM_Comment_Name || 'AM'}
                                   </span>
                                 </div>
-                                <p className="text-xs text-gray-300">{report.AM_Comment}</p>
+                                <p className="text-xs text-gray-300 whitespace-pre-wrap">{report.AM_Comment}</p>
                               </div>
                             )}
                             {report.BM_Comment && (
@@ -578,7 +578,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                     {report.BM_Comment_Name || 'BM'}
                                   </span>
                                 </div>
-                                <p className="text-xs text-gray-300">{report.BM_Comment}</p>
+                                <p className="text-xs text-gray-300 whitespace-pre-wrap">{report.BM_Comment}</p>
                               </div>
                             )}
                           </div>
@@ -867,7 +867,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                 <span className={`text-[10px] font-bold text-${commentColor}`}>{c.UserName} ({c.Role})</span>
                                 <span className="text-[8px] font-digital text-gray-600">{new Date(c.CreatedAt).toLocaleString()}</span>
                               </div>
-                              <p className="text-xs text-gray-300">{c.Text}</p>
+                              <p className="text-xs text-gray-300 whitespace-pre-wrap">{c.Text}</p>
                             </div>
                           );
                         })}

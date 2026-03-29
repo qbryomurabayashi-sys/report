@@ -18,6 +18,18 @@ interface Update {
 
 const UPDATES: Update[] = [
   {
+    version: "4.0.0",
+    date: "2026-03-29",
+    title: "通知システム & UI 改善アップデート",
+    content: [
+      "プッシュ通知機能を実装しました（FCM連携）。アプリがバックグラウンドの状態でも通知を受け取れます。",
+      "アプリアイコンのバッジ（未読件数）表示に対応しました。アプリ起動時に自動でクリアされます。",
+      "フィードバック・コメント欄の改行表示に対応しました。長い文章も読みやすくなります。",
+      "AMステータスレポートの入力形式を改善し、店舗別とエリア全体を同時に送信できるようになりました。"
+    ],
+    roleRequired: "all"
+  },
+  {
     version: "3.9.2",
     date: "2026-03-27",
     title: "AM/BM 向け機能強化",
@@ -116,7 +128,7 @@ export function VersionInfo({ user, onBack }: VersionInfoProps) {
         ))}
 
         <div className="p-4 text-center">
-          <p className="text-[10px] text-gray-600 uppercase tracking-widest font-digital">BTTF App Version 3.9.2</p>
+          <p className="text-[10px] text-gray-600 uppercase tracking-widest font-digital">BTTF App Version 4.0.0</p>
         </div>
       </div>
     </div>

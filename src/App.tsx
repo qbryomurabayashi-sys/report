@@ -12,30 +12,58 @@ import { ProjectManagement } from "./components/ProjectManagement";
 import { Settings } from "./components/Settings";
 import { VersionInfo } from "./components/VersionInfo";
 import { User, AppState } from "./types";
-import { subscribeToPush } from "./lib/notifications";
+import { subscribeToPush, setupForegroundNotifications } from "./lib/notifications";
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>("loading");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
+  const [showUpdateBanner, setShowUpdateBanner] = useState(false);
+  const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
-    console.log("BTTF App Version: 3.8");
+    console.log("BTTF App Version: 4.0.0");
     // Initial 3s loading screen
     const timer = setTimeout(() => {
       setAppState("login");
     }, 3000);
+
+    // Setup foreground notifications
+    setupForegroundNotifications();
+
+    // Clear badge on startup
+    if ("clearAppBadge" in navigator) {
+      (navigator as any).clearAppBadge();
+    }
 
     // Register Service Worker for PWA support
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then(registration => {
           console.log('SW registered: ', registration);
+          setSwRegistration(registration);
           
-          // Check for updates every hour
+          // Check for updates every 15 minutes
           setInterval(() => {
             registration.update();
-          }, 1000 * 60 * 60);
+          }, 1000 * 60 * 15);
+
+          // If there's already a waiting worker, show the banner
+          if (registration.waiting) {
+            setShowUpdateBanner(true);
+          }
+
+          // Listen for new service worker waiting
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  setShowUpdateBanner(true);
+                }
+              });
+            }
+          });
 
         }).catch(registrationError => {
           console.log('SW registration failed: ', registrationError);
@@ -75,6 +103,13 @@ export default function App() {
     setAppState("login");
   };
 
+  const handleUpdate = () => {
+    if (swRegistration?.waiting) {
+      swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+    window.location.reload();
+  };
+
   if (appState === "loading") {
     return <LoadingScreen />;
   }
@@ -85,6 +120,17 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-dark-bg text-gray-200 font-sans selection:bg-neon-blue selection:text-black">
+      {showUpdateBanner && (
+        <div className="fixed top-0 left-0 w-full z-[100] bg-neon-blue text-black p-2 text-center font-digital flex items-center justify-center gap-4 shadow-[0_0_20px_#00f3ff]">
+          <span className="text-xs font-bold uppercase tracking-widest">新しいバージョンが利用可能です</span>
+          <button 
+            onClick={handleUpdate}
+            className="bg-black text-neon-blue px-4 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest hover:bg-gray-900 transition-all border border-black"
+          >
+            アップデートを適用
+          </button>
+        </div>
+      )}
       {currentUser && (
         <>
           {appState === "dashboard" && (

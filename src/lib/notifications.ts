@@ -1,44 +1,64 @@
-export function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
+import { messaging } from "../firebase";
+import { getToken, onMessage } from "firebase/messaging";
 
 export async function subscribeToPush(userId: string) {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.warn("Push notifications not supported");
-    return;
-  }
+  if (!messaging) return;
 
   try {
-    const registration = await navigator.serviceWorker.ready;
-    const publicVapidKey = "BIJQObXWpMqW1nYXUX3b4icKnyLwcPNU2-qXJOUuUOX68wQ2BlYWyILatrP_LB2xyOzOfWih8Ott31nsdXuOYX0";
-    
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+    // Request permission
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      console.warn("Notification permission denied");
+      return;
+    }
+
+    // Get FCM Token
+    // Note: VAPID key is optional but recommended. Using the existing one if available.
+    const token = await getToken(messaging, {
+      vapidKey: "BIJQObXWpMqW1nYXUX3b4icKnyLwcPNU2-qXJOUuUOX68wQ2BlYWyILatrP_LB2xyOzOfWih8Ott31nsdXuOYX0"
     });
 
-    await fetch('/api/subscribe', {
-      method: 'POST',
-      body: JSON.stringify({ subscription, userId }),
-      headers: {
-        'content-type': 'application/json'
-      }
-    });
-    console.log("Push notification subscribed for user:", userId);
-    return true;
+    if (token) {
+      console.log("FCM Token obtained:", token);
+      
+      // Register token with our server
+      await fetch('/api/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          subscription: { endpoint: token, keys: {} }, // Mocking subscription object for existing server logic
+          userId,
+          fcmToken: token 
+        }),
+        headers: {
+          'content-type': 'application/json'
+        }
+      });
+      
+      return true;
+    }
   } catch (err) {
-    console.error("Push subscription failed:", err);
+    console.error("FCM subscription failed:", err);
     return false;
   }
+}
+
+export function setupForegroundNotifications() {
+  if (!messaging) return;
+
+  onMessage(messaging, (payload) => {
+    console.log("Foreground message received:", payload);
+    
+    // Display notification using browser API
+    if (Notification.permission === "granted") {
+      new Notification(payload.notification?.title || "新着通知", {
+        body: payload.notification?.body,
+        icon: "/icon.svg"
+      });
+    }
+
+    // Update badge
+    if ("setAppBadge" in navigator) {
+      (navigator as any).setAppBadge(1);
+    }
+  });
 }

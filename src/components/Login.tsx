@@ -272,7 +272,7 @@ export function Login({ onLogin }: LoginProps) {
               {isGasSet ? "SYSTEM ONLINE (GAS)" : "OFFLINE / LOCAL MODE"}
             </p>
           </div>
-          <p className="text-[6px] text-gray-500 font-digital mt-1">VER 3.7 - 20260325</p>
+          <p className="text-[6px] text-gray-500 font-digital mt-1">VER 4.0.0 - 20260329</p>
         </div>
       </motion.div>
     </div>

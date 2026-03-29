@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Application user",
+      "type": "object",
+      "properties": {
+        "UserID": { "type": "string" },
+        "Name": { "type": "string" },
+        "Role": { "type": "string" },
+        "Area": { "type": "string" },
+        "fcmToken": { "type": "string" }
+      },
+      "required": ["UserID", "Name"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Push notification log",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "url": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "body"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile and settings"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Notification history"
+    }
+  }
+}
