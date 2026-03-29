@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { ChevronLeft, Bell, Smartphone, Monitor, CheckCircle2, Circle, Send, ShieldCheck, ShieldAlert } from "lucide-react";
+import { ChevronLeft, Bell, Smartphone, Monitor, CheckCircle2, Circle, Send, ShieldCheck, ShieldAlert, RefreshCw } from "lucide-react";
 import { User } from "../types";
 import { subscribeToPush } from "../lib/notifications";
 
@@ -58,13 +58,28 @@ export function Settings({ user, onBack }: SettingsProps) {
   };
 
   const handleRequestPermission = async () => {
-    if (!("Notification" in window)) return;
+    if (!("Notification" in window)) {
+      alert("お使いのブラウザはプッシュ通知をサポートしていません。iOSの場合はホーム画面に追加（PWA化）してからお試しください。");
+      return;
+    }
     
-    const result = await Notification.requestPermission();
-    setPermission(result);
-    
-    if (result === "granted") {
-      await subscribeToPush(user.UserID);
+    try {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      
+      if (result === "granted") {
+        const success = await subscribeToPush(user.UserID);
+        if (success) {
+          alert("通知設定が完了しました！");
+        } else {
+          alert("通知の登録に失敗しました。");
+        }
+      } else {
+        alert("通知が許可されませんでした。端末の設定から通知を許可してください。");
+      }
+    } catch (error) {
+      console.error("Error requesting notification permission:", error);
+      alert("通知設定中にエラーが発生しました。");
     }
   };
 
@@ -95,6 +110,16 @@ export function Settings({ user, onBack }: SettingsProps) {
           });
       }, 3000);
     }
+  };
+
+  const handleForceUpdate = async () => {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (let registration of registrations) {
+        await registration.unregister();
+      }
+    }
+    window.location.reload();
   };
 
   return (
@@ -140,7 +165,7 @@ export function Settings({ user, onBack }: SettingsProps) {
               <button
                 key={item.id}
                 onClick={() => toggleSetting(item.id as keyof NotificationSettings)}
-                className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-left"
+                className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-left cursor-pointer"
               >
                 <div>
                   <p className="text-sm font-bold">{item.label}</p>
@@ -170,7 +195,7 @@ export function Settings({ user, onBack }: SettingsProps) {
               <button
                 key={item.id}
                 onClick={() => toggleSetting(item.id as keyof NotificationSettings)}
-                className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-left"
+                className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-left cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/5 rounded-lg">
@@ -200,7 +225,7 @@ export function Settings({ user, onBack }: SettingsProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               onClick={handleRequestPermission}
-              className="flex items-center justify-center gap-2 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+              className="flex items-center justify-center gap-2 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all cursor-pointer"
             >
               <Bell size={16} className="text-neon-purple" />
               <span className="text-xs font-bold">通知設定を更新 (再登録)</span>
@@ -209,7 +234,7 @@ export function Settings({ user, onBack }: SettingsProps) {
             <button
               onClick={handleTestNotification}
               disabled={isTesting || permission !== "granted"}
-              className="flex items-center justify-center gap-2 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all disabled:opacity-50 cursor-pointer"
             >
               <Send size={16} className={isTesting ? "text-gray-500" : "text-neon-purple"} />
               <span className="text-xs font-bold">{isTesting ? "送信中..." : "テスト通知を送信"}</span>
@@ -217,10 +242,18 @@ export function Settings({ user, onBack }: SettingsProps) {
 
             <button
               onClick={handleTestBadge}
-              className="flex items-center justify-center gap-2 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+              className="flex items-center justify-center gap-2 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all cursor-pointer"
             >
               <Smartphone size={16} className="text-neon-purple" />
               <span className="text-xs font-bold">バッジテスト (3秒間)</span>
+            </button>
+
+            <button
+              onClick={handleForceUpdate}
+              className="flex items-center justify-center gap-2 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all cursor-pointer"
+            >
+              <RefreshCw size={16} className="text-neon-purple" />
+              <span className="text-xs font-bold">アプリを強制更新</span>
             </button>
           </div>
         </section>

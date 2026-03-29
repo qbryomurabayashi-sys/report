@@ -10,6 +10,16 @@ interface ReportFeedProps {
 
 type ReportType = "weekly" | "decade" | "am_status";
 
+const formatText = (text: string | undefined | null) => {
+  if (!text) return "";
+  return text.split('\n').map((line, i) => (
+    <React.Fragment key={i}>
+      {line}
+      <br />
+    </React.Fragment>
+  ));
+};
+
 export function ReportFeed({ user, onBack }: ReportFeedProps) {
   const [reportType, setReportType] = useState<ReportType>("am_status");
   const [filter, setFilter] = useState<"all" | "mine" | "others">("all");
@@ -504,11 +514,11 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                           <div className="space-y-3">
                             <section>
                               <label className="text-[8px] text-gray-500 uppercase tracking-widest block mb-1">・目標</label>
-                              <p className="whitespace-pre-wrap text-gray-200">{report.Goal}</p>
+                              <p className="whitespace-pre-wrap text-gray-200">{formatText(report.Goal)}</p>
                             </section>
                             <section>
                               <label className="text-[8px] text-gray-500 uppercase tracking-widest block mb-1">★結果</label>
-                              <p className="whitespace-pre-wrap text-gray-200">{report.Result}</p>
+                              <p className="whitespace-pre-wrap text-gray-200">{formatText(report.Result)}</p>
                             </section>
                           </div>
                         </div>
@@ -521,11 +531,11 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                           <div className="space-y-3">
                             <section>
                               <label className="text-[8px] text-gray-500 uppercase tracking-widest block mb-1">★【＋】良かった点・成果</label>
-                              <p className="whitespace-pre-wrap text-gray-200">{report.ReviewPlus}</p>
+                              <p className="whitespace-pre-wrap text-gray-200">{formatText(report.ReviewPlus)}</p>
                             </section>
                             <section>
                               <label className="text-[8px] text-gray-500 uppercase tracking-widest block mb-1">★【－】課題と気づき</label>
-                              <p className="whitespace-pre-wrap text-gray-200">{report.ReviewMinus}</p>
+                              <p className="whitespace-pre-wrap text-gray-200">{formatText(report.ReviewMinus)}</p>
                             </section>
                           </div>
                         </div>
@@ -538,11 +548,11 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                           <div className="space-y-3">
                             <section>
                               <label className="text-[8px] text-gray-500 uppercase tracking-widest block mb-1">★目的</label>
-                              <p className="whitespace-pre-wrap text-gray-200">{report.NextActionPurpose}</p>
+                              <p className="whitespace-pre-wrap text-gray-200">{formatText(report.NextActionPurpose)}</p>
                             </section>
                             <section>
                               <label className="text-[8px] text-gray-500 uppercase tracking-widest block mb-1">★具体的な行動</label>
-                              <p className="whitespace-pre-wrap text-gray-200">{report.NextActionDetail}</p>
+                              <p className="whitespace-pre-wrap text-gray-200">{formatText(report.NextActionDetail)}</p>
                             </section>
                           </div>
                         </div>
@@ -553,7 +563,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                               <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
                               相談・共有事項
                             </h4>
-                            <p className="whitespace-pre-wrap text-gray-300">{report.Consultation}</p>
+                            <p className="whitespace-pre-wrap text-gray-300">{formatText(report.Consultation)}</p>
                           </div>
                         )}
                         
@@ -568,7 +578,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                     {report.AM_Comment_Name || 'AM'}
                                   </span>
                                 </div>
-                                <p className="text-xs text-gray-300 whitespace-pre-wrap">{report.AM_Comment}</p>
+                                <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(report.AM_Comment)}</p>
                               </div>
                             )}
                             {report.BM_Comment && (
@@ -578,7 +588,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                     {report.BM_Comment_Name || 'BM'}
                                   </span>
                                 </div>
-                                <p className="text-xs text-gray-300 whitespace-pre-wrap">{report.BM_Comment}</p>
+                                <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(report.BM_Comment)}</p>
                               </div>
                             )}
                           </div>
@@ -621,15 +631,15 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                         <div className="space-y-4 text-sm">
                           <section>
                             <label className="text-[10px] text-neon-orange font-digital uppercase tracking-widest block mb-1">状況把握：事実（Fact）のみ</label>
-                            <p className="whitespace-pre-wrap text-gray-200">{report.AreaFact}</p>
+                            <p className="whitespace-pre-wrap text-gray-200">{formatText(report.AreaFact)}</p>
                           </section>
                           <section>
                             <label className="text-[10px] text-neon-orange font-digital uppercase tracking-widest block mb-1">店長への「伴走・育成」実績</label>
-                            <p className="whitespace-pre-wrap text-gray-200">{report.CoachingRecord}</p>
+                            <p className="whitespace-pre-wrap text-gray-200">{formatText(report.CoachingRecord)}</p>
                           </section>
                           <section>
                             <label className="text-[10px] text-neon-orange font-digital uppercase tracking-widest block mb-1">自己責任100%の振り返りと1つの実験</label>
-                            <p className="whitespace-pre-wrap text-gray-200">{report.SelfReflection}</p>
+                            <p className="whitespace-pre-wrap text-gray-200">{formatText(report.SelfReflection)}</p>
                           </section>
                         </div>
 
@@ -642,7 +652,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                 {report.BM_Comment_Name || 'BM'} (BM)
                               </span>
                             </div>
-                            <p className="text-xs text-gray-200 whitespace-pre-wrap">{report.BM_Comment}</p>
+                            <p className="text-xs text-gray-200 whitespace-pre-wrap">{formatText(report.BM_Comment)}</p>
                           </div>
                         )}
 
@@ -674,20 +684,20 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                         <div className="space-y-4 text-sm">
                           <section>
                             <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-1">エリアのビジョン・目標</label>
-                            <p className="whitespace-pre-wrap text-gray-200">{report.textAreaVision || "未入力"}</p>
+                            <p className="whitespace-pre-wrap text-gray-200">{formatText(report.textAreaVision) || "未入力"}</p>
                           </section>
                           <section>
                             <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-1">総括</label>
-                            <p className="whitespace-pre-wrap text-gray-200">{report.textAreaSummary || "未入力"}</p>
+                            <p className="whitespace-pre-wrap text-gray-200">{formatText(report.textAreaSummary) || "未入力"}</p>
                           </section>
                           <section>
                             <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-1">店長のコンディション</label>
-                            <p className="whitespace-pre-wrap text-gray-200">{report.textManagerCondition || "未入力"}</p>
+                            <p className="whitespace-pre-wrap text-gray-200">{formatText(report.textManagerCondition) || "未入力"}</p>
                           </section>
                           {report.textOtherTopics && (
                             <section>
                               <label className="text-[10px] text-neon-green font-digital uppercase tracking-widest block mb-1">その他トピックス</label>
-                              <p className="whitespace-pre-wrap text-gray-200">{report.textOtherTopics}</p>
+                              <p className="whitespace-pre-wrap text-gray-200">{formatText(report.textOtherTopics)}</p>
                             </section>
                           )}
                           {report.storeReports && report.storeReports.length > 0 && (
@@ -703,33 +713,33 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                         <label className="text-[9px] text-gray-500 uppercase tracking-tighter">先月の課題解決/振り返り</label>
                                         <div className="space-y-1">
                                           <p className="text-[10px] text-gray-500">【課題解決・取り組み】</p>
-                                          <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textLastMonthGoals || "未入力"}</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(store.textLastMonthGoals) || "未入力"}</p>
                                           <p className="text-[10px] text-gray-500 mt-2">【学び・反省点や成果】</p>
-                                          <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textLastMonthResults || "未入力"}</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(store.textLastMonthResults) || "未入力"}</p>
                                         </div>
                                       </div>
                                       <div className="space-y-2">
                                         <label className="text-[9px] text-gray-500 uppercase tracking-tighter">今月の課題解決への取り組み</label>
                                         <div className="space-y-1">
                                           <p className="text-[10px] text-gray-500">【課題解決・取り組み】</p>
-                                          <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textThisMonthGoals || "未入力"}</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(store.textThisMonthGoals) || "未入力"}</p>
                                         </div>
                                       </div>
                                     </div>
 
                                     <div className="space-y-2">
                                       <label className="text-[9px] text-gray-500 uppercase tracking-tighter">今月の注力ポイント</label>
-                                      <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textThisMonthFocus || "未入力"}</p>
+                                      <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(store.textThisMonthFocus) || "未入力"}</p>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       <div className="space-y-2">
                                         <label className="text-[9px] text-gray-500 uppercase tracking-tighter">販促・キャンペーン</label>
-                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textPromo || "未入力"}</p>
+                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(store.textPromo) || "未入力"}</p>
                                       </div>
                                       <div className="space-y-2">
                                         <label className="text-[9px] text-gray-500 uppercase tracking-tighter">設備・備品</label>
-                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textFacility || "未入力"}</p>
+                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(store.textFacility) || "未入力"}</p>
                                       </div>
                                     </div>
 
@@ -753,7 +763,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
 
                                     <div className="space-y-2">
                                       <label className="text-[9px] text-gray-500 uppercase tracking-tighter">スタッフの様子 (店舗)</label>
-                                      <p className="text-xs text-gray-300 whitespace-pre-wrap">{store.textStaffStore || "未入力"}</p>
+                                      <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(store.textStaffStore) || "未入力"}</p>
                                     </div>
                                   </div>
                                 ))}
@@ -773,7 +783,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                     </div>
                                     <p className="text-xs text-gray-200 mb-1">{event.store} / {event.name}</p>
                                     {event.details && (
-                                      <p className="text-[10px] text-gray-400 whitespace-pre-wrap mt-2 bg-black/20 p-2 rounded border border-white/5">{event.details}</p>
+                                      <p className="text-[10px] text-gray-400 whitespace-pre-wrap mt-2 bg-black/20 p-2 rounded border border-white/5">{formatText(event.details)}</p>
                                     )}
                                   </div>
                                 ))}
@@ -807,11 +817,11 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                       <div className="space-y-3">
                                         <div>
                                           <p className="text-[10px] text-gray-500 mb-1">【主な内容】</p>
-                                          <p className="text-xs text-gray-300 whitespace-pre-wrap bg-black/20 p-2 rounded border border-white/5">{event.contentMain || "未入力"}</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap bg-black/20 p-2 rounded border border-white/5">{formatText(event.contentMain) || "未入力"}</p>
                                         </div>
                                         <div>
                                           <p className="text-[10px] text-gray-500 mb-1">【懸念事項/未解決事項】</p>
-                                          <p className="text-xs text-gray-300 whitespace-pre-wrap bg-neon-red/5 p-2 rounded border border-neon-red/10">{event.contentConcerns || "未入力"}</p>
+                                          <p className="text-xs text-gray-300 whitespace-pre-wrap bg-neon-red/5 p-2 rounded border border-neon-red/10">{formatText(event.contentConcerns) || "未入力"}</p>
                                         </div>
                                       </div>
                                     </div>
@@ -819,11 +829,11 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       <div className="space-y-2">
                                         <label className="text-[9px] text-gray-500 uppercase tracking-tighter">次回アクション</label>
-                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{event.contentNextAction || "未入力"}</p>
+                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(event.contentNextAction) || "未入力"}</p>
                                       </div>
                                       <div className="space-y-2">
                                         <label className="text-[9px] text-gray-500 uppercase tracking-tighter">所感</label>
-                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{event.contentImpression || "未入力"}</p>
+                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(event.contentImpression) || "未入力"}</p>
                                       </div>
                                     </div>
                                   </div>
@@ -844,7 +854,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                               e.stopPropagation();
                               handleToggleLike(report.ReportID);
                             }}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${report.UserLiked ? "bg-neon-red/10 border-neon-red text-neon-red" : "border-gray-800 text-gray-500 hover:border-gray-700"}`}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all cursor-pointer ${report.UserLiked ? "bg-neon-red/10 border-neon-red text-neon-red" : "border-gray-800 text-gray-500 hover:border-gray-700"}`}
                           >
                             <Heart size={16} className={report.UserLiked ? "fill-neon-red" : ""} />
                             <span className="text-xs font-digital">{report.LikeCount || 0}</span>
@@ -867,7 +877,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                                 <span className={`text-[10px] font-bold text-${commentColor}`}>{c.UserName} ({c.Role})</span>
                                 <span className="text-[8px] font-digital text-gray-600">{new Date(c.CreatedAt).toLocaleString()}</span>
                               </div>
-                              <p className="text-xs text-gray-300 whitespace-pre-wrap">{c.Text}</p>
+                              <p className="text-xs text-gray-300 whitespace-pre-wrap">{formatText(c.Text)}</p>
                             </div>
                           );
                         })}
@@ -889,7 +899,7 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
                               <button
                                 onClick={handleSaveComment}
                                 disabled={isLoading || !comment}
-                                className={`p-2 bg-${myCommentColor} text-black rounded-lg hover:shadow-[0_0_10px_${myCommentColorHex}] transition-all disabled:opacity-50`}
+                                className={`p-2 bg-${myCommentColor} text-black rounded-lg hover:shadow-[0_0_10px_${myCommentColorHex}] transition-all disabled:opacity-50 cursor-pointer`}
                               >
                                 <Send size={16} />
                               </button>

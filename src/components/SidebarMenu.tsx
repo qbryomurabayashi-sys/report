@@ -322,7 +322,7 @@ function MenuButton({ icon, label, onClick, variant = "default" }: {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${
+      className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group cursor-pointer ${
         variant === "danger" 
           ? "hover:bg-red-500/10 text-gray-400 hover:text-red-400" 
           : "hover:bg-neon-blue/10 text-gray-400 hover:text-neon-blue"
@@ -353,7 +353,7 @@ function SettingToggle({ icon, label, enabled, onChange }: {
       </div>
       <button
         onClick={() => onChange(!enabled)}
-        className={`w-10 h-5 rounded-full relative transition-colors ${enabled ? "bg-neon-blue" : "bg-gray-800"}`}
+        className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${enabled ? "bg-neon-blue" : "bg-gray-800"}`}
       >
         <motion.div
           animate={{ x: enabled ? 22 : 2 }}

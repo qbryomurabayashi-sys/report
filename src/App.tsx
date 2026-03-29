@@ -43,9 +43,12 @@ export default function App() {
           console.log('SW registered: ', registration);
           setSwRegistration(registration);
           
+          // Force update check immediately on load
+          registration.update().catch(err => console.log('SW update check failed:', err));
+          
           // Check for updates every 15 minutes
           setInterval(() => {
-            registration.update();
+            registration.update().catch(err => console.log('SW periodic update check failed:', err));
           }, 1000 * 60 * 15);
 
           // If there's already a waiting worker, show the banner
@@ -103,11 +106,21 @@ export default function App() {
     setAppState("login");
   };
 
-  const handleUpdate = () => {
-    if (swRegistration?.waiting) {
-      swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+  const handleUpdate = async () => {
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        } else {
+          window.location.reload();
+        }
+      } catch (e) {
+        window.location.reload();
+      }
+    } else {
+      window.location.reload();
     }
-    window.location.reload();
   };
 
   if (appState === "loading") {

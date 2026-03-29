@@ -44,8 +44,17 @@ try {
   console.error("Failed to set VAPID details. Push notifications may not work.", err);
 }
 
-// Mock DB for subscriptions
+// Mock DB for subscriptions (now loaded from db.json)
 let subscriptions: Record<string, any[]> = {};
+
+try {
+  const data = JSON.parse(fs.readFileSync(path.join(process.cwd(), "db.json"), "utf-8"));
+  if (data.subscriptions) {
+    subscriptions = data.subscriptions;
+  }
+} catch (e) {
+  console.log("Could not load subscriptions from db.json on startup");
+}
 
 app.post("/api/subscribe", (req, res) => {
   const { subscription, userId } = req.body;
@@ -54,6 +63,15 @@ app.post("/api/subscribe", (req, res) => {
   // Avoid duplicates
   if (!subscriptions[userId].some(s => s.endpoint === subscription.endpoint)) {
     subscriptions[userId].push(subscription);
+    
+    // Save to db.json
+    try {
+      const data = getData();
+      data.subscriptions = subscriptions;
+      saveData(data);
+    } catch (e) {
+      console.error("Failed to save subscriptions to db.json", e);
+    }
   }
   console.log(`User ${userId} subscribed for push notifications. Total subs: ${subscriptions[userId].length}`);
   res.status(201).json({ success: true });
@@ -97,6 +115,15 @@ function notifyUsers(userIds: string[], payload: any) {
         console.error(`Web Push error for user ${uid}:`, err);
         if (err.statusCode === 410 || err.statusCode === 404) {
           subscriptions[uid] = subscriptions[uid].filter(s => s.endpoint !== sub.endpoint);
+          
+          // Save updated subscriptions to db.json
+          try {
+            const data = getData();
+            data.subscriptions = subscriptions;
+            saveData(data);
+          } catch (e) {
+            console.error("Failed to save updated subscriptions to db.json", e);
+          }
         }
       });
 
@@ -306,7 +333,8 @@ const initialData = {
   likes: [],
   comments: [],
   tasks: [],
-  projects: []
+  projects: [],
+  subscriptions: {}
 };
 
 if (!fs.existsSync(DATA_FILE)) {
@@ -1055,6 +1083,9 @@ app.post("/api/sendNotification", async (req, res) => {
 });
 
 async function startServer() {
+  // Use the globally defined 'app' which already has all routes attached
+  // app is defined at the top of the file: const app = express();
+  
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

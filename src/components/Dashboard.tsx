@@ -225,30 +225,30 @@ export function Dashboard({ user, onLogout, onNavigate, onOpenPinModal }: Dashbo
       </motion.div>
 
       {/* User Info Header */}
-      <header className="flex justify-between items-center mb-8 glass-card p-6 rounded-2xl border-l-4 border-neon-blue">
-        <div className="flex items-center gap-4">
+      <header className="flex justify-between items-center mb-8 glass-card p-4 sm:p-6 rounded-2xl border-l-4 border-neon-blue">
+        <div className="flex items-center gap-3 sm:gap-4">
           <button 
             onClick={() => setIsMenuOpen(true)}
-            className="p-3 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all active:scale-90"
+            className="p-2 sm:p-3 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all active:scale-90 cursor-pointer"
           >
             <Menu size={20} />
           </button>
           <div>
-            <h2 className="text-2xl font-bold neon-text-blue font-display tracking-tight">{user.Name}</h2>
-            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1 font-digital">{user.Role} | {user.Area}</p>
+            <h2 className="text-lg sm:text-2xl font-bold neon-text-blue font-display tracking-tight truncate max-w-[120px] sm:max-w-none">{user.Name}</h2>
+            <p className="text-[8px] sm:text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1 font-digital">{user.Role} | {user.Area}</p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
           <button 
             onClick={() => fetchData(true)}
             disabled={isRefreshing}
-            className={`p-2 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all active:scale-90 ${isRefreshing ? "animate-spin text-neon-blue" : ""}`}
+            className={`p-2 glass-card rounded-xl text-gray-500 hover:text-neon-blue transition-all active:scale-90 cursor-pointer ${isRefreshing ? "animate-spin text-neon-blue" : ""}`}
             title="最新の情報に更新"
           >
             <RefreshCw size={16} />
           </button>
           {lastUpdated && (
-            <span className="text-[8px] text-gray-700 font-digital uppercase">
+            <span className="text-[8px] text-gray-700 font-digital uppercase hidden sm:block">
               {format(lastUpdated, "HH:mm:ss")} UPDATED
             </span>
           )}

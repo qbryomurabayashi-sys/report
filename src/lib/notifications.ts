@@ -39,14 +39,34 @@ export async function subscribeToPush(userId: string) {
     if (subscription) {
       // Unsubscribe existing to avoid InvalidStateError with different keys
       console.log("Unsubscribing from existing push subscription...");
-      await subscription.unsubscribe();
+      const unsubscribed = await subscription.unsubscribe();
+      if (unsubscribed) {
+        console.log("Successfully unsubscribed.");
+      } else {
+        console.warn("Failed to unsubscribe. This might cause issues with the new subscription.");
+      }
+      // Wait a tiny bit to ensure the browser clears the state
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     console.log("Subscribing to push with new key...");
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: applicationServerKey
-    });
+    try {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey
+      });
+    } catch (subErr: any) {
+      console.error("Initial subscribe failed:", subErr);
+      if (subErr.name === 'InvalidStateError') {
+        console.log("Attempting to unregister service worker as a fallback...");
+        await registration.unregister();
+        console.log("Service worker unregistered. Please reload the page.");
+        alert("通知設定をリセットしました。ページを再読み込みしてください。");
+        window.location.reload();
+        return false;
+      }
+      throw subErr;
+    }
 
     console.log("Push Subscription obtained:", subscription);
     
