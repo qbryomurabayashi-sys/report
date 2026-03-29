@@ -35,7 +35,15 @@ export async function subscribeToPush(userId: string) {
     const applicationServerKey = urlBase64ToUint8Array(publicVapidKey);
 
     // Subscribe to Push
-    const subscription = await registration.pushManager.subscribe({
+    let subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      // Unsubscribe existing to avoid InvalidStateError with different keys
+      console.log("Unsubscribing from existing push subscription...");
+      await subscription.unsubscribe();
+    }
+
+    console.log("Subscribing to push with new key...");
+    subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: applicationServerKey
     });

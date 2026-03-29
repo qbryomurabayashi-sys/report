@@ -200,11 +200,10 @@ export function Settings({ user, onBack }: SettingsProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               onClick={handleRequestPermission}
-              disabled={permission === "granted"}
-              className="flex items-center justify-center gap-2 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
             >
               <Bell size={16} className="text-neon-purple" />
-              <span className="text-xs font-bold">通知許可をリクエスト</span>
+              <span className="text-xs font-bold">通知設定を更新 (再登録)</span>
             </button>
 
             <button
