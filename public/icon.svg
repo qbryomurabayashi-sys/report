@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#000000"/>
-  <text x="50%" y="50%" font-family="Orbitron, sans-serif" font-size="200" fill="#00f3ff" text-anchor="middle" dy=".3em">BTTF</text>
-  <circle cx="256" cy="256" r="240" fill="none" stroke="#00f3ff" stroke-width="20" stroke-dasharray="100 50"/>
+  <rect width="512" height="512" fill="#2563eb" rx="112" />
+  <path d="M160 368h192v32H160zm0-80h192v32H160zm0-80h192v32H160zm0-80h192v32H160z" fill="#ffffff" />
+  <path d="M112 128h32v272h-32z" fill="#93c5fd" />
 </svg>
