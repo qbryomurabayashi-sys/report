@@ -4,6 +4,7 @@ import { User } from "../types";
 import { auth, db } from "../firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import dbData from "../../db.json";
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -66,7 +67,13 @@ export function Login({ onLogin }: LoginProps) {
       }
     } catch (err: any) {
       console.error("Google login error:", err);
-      setError("Googleログインに失敗しました。");
+      if (err.code === 'auth/unauthorized-domain') {
+        setError("このドメインはGoogleログインが許可されていません。Firebaseコンソールでドメインを追加してください。");
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError("ログインがキャンセルされました。");
+      } else {
+        setError(`Googleログインに失敗しました: ${err.message || err.code || "不明なエラー"}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -79,21 +86,17 @@ export function Login({ onLogin }: LoginProps) {
     setError("");
 
     try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: selectedUserId, pin })
-      });
+      // db.jsonから直接ユーザーを検索して認証
+      const user = dbData.users.find((u: any) => String(u.UserID) === String(selectedUserId));
       
-      const result = await response.json();
-      
-      if (result.success) {
-        onLogin(result.user);
+      if (user && user.PIN === pin) {
+        onLogin(user as User);
       } else {
-        setError(result.error || "ログインに失敗しました");
+        setError("PINが正しくありません");
       }
     } catch (err: any) {
-      setError("通信エラーが発生しました");
+      setError("認証処理中にエラーが発生しました");
+      console.error(err);
     } finally {
       setIsLoading(false);
     }

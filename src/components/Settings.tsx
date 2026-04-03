@@ -6,6 +6,7 @@ import { subscribeToPush } from "../lib/notifications";
 import { db } from "../firebase";
 import { doc, getDoc, setDoc, collection } from "firebase/firestore";
 import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
+import dbData from "../../db.json";
 
 interface SettingsProps {
   user: User;
@@ -169,14 +170,8 @@ export function Settings({ user, onBack }: SettingsProps) {
     setMigrationStatus("データを取得中...");
     
     try {
-      const response = await fetch("/api/migrate-data");
-      const result = await response.json();
+      const data = dbData as any;
       
-      if (!result.success || !result.data) {
-        throw new Error("データの取得に失敗しました");
-      }
-      
-      const data = result.data;
       const collections: Record<string, string> = {
         users: "users",
         weeklyReports: "weeklyReports",
