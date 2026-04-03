@@ -5,17 +5,56 @@ import fs from "node:fs";
 import fetch from "node-fetch";
 import webpush from "web-push";
 import admin from "firebase-admin";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
+
+// Load Firebase configuration
+let firebaseConfig: any = {};
+try {
+  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+  }
+} catch (err) {
+  console.error("Failed to load firebase-applet-config.json", err);
+}
 
 // Initialize Firebase Admin
 try {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-    projectId: "gen-lang-client-0454608404"
-  });
-  console.log("Firebase Admin initialized successfully.");
+  if (firebaseConfig.projectId) {
+    process.env.GOOGLE_CLOUD_PROJECT = firebaseConfig.projectId;
+    process.env.GCLOUD_PROJECT = firebaseConfig.projectId;
+  }
+  
+  if (admin.apps.length === 0) {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: firebaseConfig.projectId
+    });
+    console.log("[Firebase Admin] Initialized successfully for project:", firebaseConfig.projectId);
+  } else {
+    console.log("[Firebase Admin] Already initialized.");
+  }
 } catch (err) {
-  console.error("Failed to initialize Firebase Admin. Push notifications via FCM may not work.", err);
+  console.error("[Firebase Admin] Failed to initialize:", err);
 }
+
+const getDb = () => {
+  const dbId = firebaseConfig.firestoreDatabaseId;
+  const projectId = firebaseConfig.projectId;
+  
+  try {
+    const app = admin.app();
+    console.log(`[Firestore] Getting instance for project: ${projectId}, database: ${dbId || "(default)"}`);
+    
+    if (dbId && dbId !== "(default)") {
+      return getFirestore(app, dbId);
+    }
+    return getFirestore(app);
+  } catch (err) {
+    console.error("[Firestore] Failed to get Firestore instance:", err);
+    throw err;
+  }
+};
 
 const app = express();
 const PORT = 3000;
@@ -57,7 +96,7 @@ const getData = () => {
 app.post("/api/migrate", async (req, res) => {
   console.log("Migration requested...");
   const data = getData();
-  const db = admin.firestore();
+  const db = getDb();
 
   const collections: Record<string, string> = {
     users: "users",
@@ -81,7 +120,7 @@ app.post("/api/migrate", async (req, res) => {
         
         await docRef.set({
           ...item,
-          migratedAt: admin.firestore.FieldValue.serverTimestamp()
+          migratedAt: FieldValue.serverTimestamp()
         }, { merge: true });
       }
     }
@@ -92,10 +131,37 @@ app.post("/api/migrate", async (req, res) => {
   }
 });
 
+// Login endpoint for PIN authentication
+app.post("/api/login", async (req, res) => {
+  const { userId, pin } = req.body;
+  if (!userId || !pin) {
+    return res.status(400).json({ success: false, error: "UserID and PIN are required" });
+  }
+
+  try {
+    const db = getDb();
+    const userDoc = await db.collection("users").doc(String(userId)).get();
+    
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      if (String(userData?.Pin) === String(pin)) {
+        res.json({ success: true, user: { ...userData, UserID: userDoc.id } });
+      } else {
+        res.status(401).json({ success: false, error: "パスワードが正しくありません" });
+      }
+    } else {
+      res.status(404).json({ success: false, error: "ユーザーが見つかりません" });
+    }
+  } catch (error: any) {
+    console.error("Login API error:", error);
+    res.status(500).json({ success: false, error: "サーバーエラーが発生しました" });
+  }
+});
+
 // Helper to send notifications
 async function notifyUsers(userIds: string[], payload: any, type?: string) {
   console.log(`Sending notifications to users: ${userIds.join(", ")} with payload:`, payload);
-  const db = admin.firestore();
+  const db = getDb();
   
   // Add default badge if not present
   if (payload.badge === undefined) {
@@ -133,7 +199,7 @@ async function notifyUsers(userIds: string[], payload: any, type?: string) {
             if (err.statusCode === 410 || err.statusCode === 404) {
               // Remove invalid subscription
               await db.collection("users").doc(uid).update({
-                subscriptions: admin.firestore.FieldValue.arrayRemove(sub)
+                subscriptions: FieldValue.arrayRemove(sub)
               });
             }
           });
@@ -186,7 +252,7 @@ async function checkDeadlines() {
   if (lastDeadlineCheck === checkKey) return;
   lastDeadlineCheck = checkKey;
 
-  const db = admin.firestore();
+  const db = getDb();
   
   try {
     const usersSnapshot = await db.collection("users").get();
@@ -222,16 +288,16 @@ async function checkDeadlines() {
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-      const tasksSnapshot = await db.collection("tasks")
-        .where("Status", "!=", "completed")
-        .where("Deadline", "==", tomorrowStr)
-        .get();
+      // Use a simpler query to avoid index requirements
+      const tasksSnapshot = await db.collection("tasks").get();
       
-      const dueTasks = tasksSnapshot.docs.map(doc => doc.data());
+      const dueTasks = tasksSnapshot.docs
+        .map(doc => doc.data())
+        .filter((task: any) => task.Status !== "completed" && task.Deadline === tomorrowStr);
       
       dueTasks.forEach((task: any) => {
         // Find user by name (Assignee)
-        const user = users.find((u: any) => u.Name === task.Assignee);
+        const user = users.find((u: any) => u.Name === task.Assignee || u.UserID === task.Assignee);
         if (user) {
           notifyUsers([String(user.uid || user.UserID)], {
             title: "【タスク期限1日前】",

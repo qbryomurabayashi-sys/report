@@ -3,19 +3,17 @@ import { motion } from "motion/react";
 import { User } from "../types";
 import { auth, db } from "../firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, getDocs, query } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 interface LoginProps {
   onLogin: (user: User) => void;
 }
 
 export function Login({ onLogin }: LoginProps) {
-  const [users, setUsers] = useState<User[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingUsers, setIsFetchingUsers] = useState(true);
   const [tapCount, setTapCount] = useState(0);
 
   const handleLogoClick = () => {
@@ -25,33 +23,6 @@ export function Login({ onLogin }: LoginProps) {
       setTapCount(0);
     }
   };
-
-  React.useEffect(() => {
-    const fetchUsers = async () => {
-      setIsFetchingUsers(true);
-      try {
-        const q = query(collection(db, "users"));
-        const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map(doc => ({
-          ...doc.data(),
-          id: doc.id
-        })) as any[];
-        
-        if (data.length > 0) {
-          setUsers(data);
-        } else {
-          // Fallback if Firestore is empty
-          console.log("Firestore users collection is empty.");
-        }
-      } catch (err: any) {
-        console.error("Login fetch error:", err);
-        setError(`接続エラー: ${err.message}`);
-      } finally {
-        setIsFetchingUsers(false);
-      }
-    };
-    fetchUsers();
-  }, []);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -108,16 +79,18 @@ export function Login({ onLogin }: LoginProps) {
     setError("");
 
     try {
-      const userDoc = await getDoc(doc(db, "users", selectedUserId));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (String(userData.Pin) === String(pin)) {
-          onLogin(userData as User);
-        } else {
-          setError("パスワードが正しくありません");
-        }
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUserId, pin })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        onLogin(result.user);
       } else {
-        setError("ユーザーが見つかりません");
+        setError(result.error || "ログインに失敗しました");
       }
     } catch (err: any) {
       setError("通信エラーが発生しました");
