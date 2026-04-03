@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { motion } from "motion/react";
 import { User } from "../types";
 import { ChevronLeft, Send, ChartLine, Info, Plus, Trash2 } from "lucide-react";
+import { db } from "../firebase";
+import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 interface DecadeFormProps {
   user: User;
@@ -30,14 +33,19 @@ export function DecadeForm({ user, onBack }: DecadeFormProps) {
     const fetchLastReport = async () => {
       setIsLoadingLastReport(true);
       try {
-        const response = await fetch(`/api/decadeReports?userId=${user.UserID}&role=${user.Role}`);
-        const data = await response.json();
-        const myReports = data.filter((r: any) => String(r.UserID) === String(user.UserID));
-        if (myReports.length > 0) {
-          setLastReport(myReports[0]);
+        const q = query(
+          collection(db, "decadeReports"),
+          where("UserID", "==", user.UserID),
+          orderBy("SubmittedAt", "desc"),
+          limit(1)
+        );
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          setLastReport(querySnapshot.docs[0].data());
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch last report:", err);
+        handleFirestoreError(err, OperationType.LIST, "decadeReports");
       } finally {
         setIsLoadingLastReport(false);
       }
@@ -49,33 +57,55 @@ export function DecadeForm({ user, onBack }: DecadeFormProps) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const response = await fetch("/api/saveDecadeReport", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, UserID: user.UserID }),
-      });
-      const data = await response.json();
+      const reportData = {
+        ...formData,
+        UserID: user.UserID,
+        UserName: user.Name,
+        UserArea: user.Area,
+        SubmittedAt: new Date().toISOString(),
+        CreatedAt: serverTimestamp(),
+        LikeCount: 0,
+        Likers: [],
+        Comments: []
+      };
+
+      await addDoc(collection(db, "decadeReports"), reportData)
+        .catch(e => handleFirestoreError(e, OperationType.CREATE, "decadeReports"));
       
       // Save tasks if any
       for (const task of tasks) {
         if (task.Content && task.Deadline && task.Assignee) {
-          await fetch("/api/tasks", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              assignee: task.Assignee,
-              deadline: task.Deadline,
-              content: task.Content,
-              status: "pending"
-            })
-          });
+          await addDoc(collection(db, "tasks"), {
+            Assignee: task.Assignee,
+            Deadline: task.Deadline,
+            Content: task.Content,
+            Status: "pending",
+            CreatedAt: serverTimestamp(),
+            UserID: user.UserID,
+            Source: "decade_report"
+          }).catch(e => handleFirestoreError(e, OperationType.CREATE, "tasks"));
         }
       }
 
-      if (data.success) {
-        alert("旬報を送信しました");
-        onBack();
+      // Add notification for BM
+      const qBM = query(collection(db, "users"), where("Role", "==", "BM"), limit(1));
+      const bmSnap = await getDocs(qBM);
+      
+      if (!bmSnap.empty) {
+        const bmId = bmSnap.docs[0].id;
+        await addDoc(collection(db, "notifications"), {
+          UserID: bmId,
+          Title: "新しい旬報が届きました",
+          Body: `${user.Name}が旬報を提出しました。`,
+          Url: "/reports",
+          Read: false,
+          CreatedAt: new Date().toISOString(),
+          Type: "info"
+        });
       }
+
+      alert("旬報を送信しました");
+      onBack();
     } catch (err) {
       alert("送信に失敗しました");
     } finally {

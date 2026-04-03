@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { User } from "../types";
 import { ChevronLeft, Send, Info, MessageSquare, Calendar } from "lucide-react";
+import { db } from "../firebase";
+import { collection, addDoc, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 interface WeeklyFormProps {
   user: User;
@@ -27,15 +30,19 @@ export function WeeklyForm({ user, onBack }: WeeklyFormProps) {
     const fetchLastReport = async () => {
       setIsLoadingLastReport(true);
       try {
-        const response = await fetch(`/api/weeklyReports?userId=${user.UserID}&role=${user.Role}`);
-        const data = await response.json();
-        // 自分自身の最新の報告を探す
-        const myReports = data.filter((r: any) => String(r.UserID) === String(user.UserID));
-        if (myReports.length > 0) {
-          setLastReport(myReports[0]);
+        const q = query(
+          collection(db, "weeklyReports"),
+          where("UserID", "==", user.UserID),
+          orderBy("SubmittedAt", "desc"),
+          limit(1)
+        );
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          setLastReport(querySnapshot.docs[0].data());
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch last report:", err);
+        handleFirestoreError(err, OperationType.LIST, "weeklyReports");
       } finally {
         setIsLoadingLastReport(false);
       }
@@ -47,17 +54,47 @@ export function WeeklyForm({ user, onBack }: WeeklyFormProps) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const response = await fetch("/api/saveWeeklyReport", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, UserID: user.UserID }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        alert("週報を送信しました");
-        onBack();
-      }
+      const reportData = {
+        ...formData,
+        UserID: user.UserID,
+        UserName: user.Name,
+        UserArea: user.Area,
+        SubmittedAt: new Date().toISOString(),
+        type: "weekly"
+      };
+
+      await addDoc(collection(db, "weeklyReports"), reportData);
+
+      // Notify peers and superiors
+      let notifyRoles: string[] = [];
+      if (user.Role === "店長") notifyRoles = ["店長", "AM", "BM"];
+      if (user.Role === "AM") notifyRoles = ["AM", "BM"];
+      if (user.Role === "BM") notifyRoles = ["BM"];
+
+      // Fetch users to notify
+      const qUsers = query(collection(db, "users"), where("Role", "in", notifyRoles));
+      const usersSnap = await getDocs(qUsers);
+      
+      const notifications = usersSnap.docs
+        .filter(doc => doc.id !== user.UserID) // Don't notify self
+        .map(userDoc => {
+          return addDoc(collection(db, "notifications"), {
+            UserID: userDoc.id,
+            Title: "週報の提出",
+            Body: `${user.Name}が週報を提出しました。`,
+            Url: "/reports",
+            Read: false,
+            CreatedAt: new Date().toISOString(),
+            Type: "info"
+          });
+        });
+
+      await Promise.all(notifications);
+
+      alert("週報を送信しました");
+      onBack();
     } catch (err) {
+      console.error("Submit error:", err);
       alert("送信に失敗しました");
     } finally {
       setIsLoading(false);

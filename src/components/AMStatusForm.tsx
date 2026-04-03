@@ -2,6 +2,9 @@ import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { User } from "../types";
 import { ChevronLeft, ChevronRight, Send, Save, Plus, Trash2, Building2, Users, ChevronDown, ChevronUp, X } from "lucide-react";
+import { db } from "../firebase";
+import { collection, addDoc, serverTimestamp, query, where, limit, getDocs } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 interface AMStatusFormProps {
   user: User;
@@ -234,26 +237,37 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
         textManagerCondition,
         textOtherTopics,
         hrEvents,
-        interviewEvents
+        interviewEvents,
+        SubmittedAt: new Date().toISOString(),
+        CreatedAt: serverTimestamp(),
+        LikeCount: 0,
+        Likers: [],
+        Comments: []
       };
 
-      const response = await fetch("/api/saveAMStatusReport", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      await addDoc(collection(db, "amStatusReports"), payload)
+        .catch(e => handleFirestoreError(e, OperationType.CREATE, "amStatusReports"));
 
-      const data = await response.json();
-      if (data.success) {
-        clearDraft();
-        alert("近況報告を提出しました");
-        onBack();
-      } else {
-        console.error("Submission error details:", data);
-        const errorMsg = data.message || data.error || "不明なエラー";
-        const details = data.details || "Google Apps Script側の設定（シート作成権限、デプロイURLなど）を確認してください。";
-        alert("提出に失敗しました: " + errorMsg + "\n\n" + details);
+      // Add notification for BM
+      const qBM = query(collection(db, "users"), where("Role", "==", "BM"), limit(1));
+      const bmSnap = await getDocs(qBM);
+      
+      if (!bmSnap.empty) {
+        const bmId = bmSnap.docs[0].id;
+        await addDoc(collection(db, "notifications"), {
+          UserID: bmId,
+          Title: "新しい近況報告が届きました",
+          Body: `${user.Name}が近況報告を提出しました。`,
+          Url: "/reports",
+          Read: false,
+          CreatedAt: new Date().toISOString(),
+          Type: "info"
+        });
       }
+
+      clearDraft();
+      alert("近況報告を提出しました");
+      onBack();
     } catch (err) {
       alert("エラーが発生しました");
     } finally {
@@ -272,22 +286,6 @@ export function AMStatusForm({ user, onBack }: AMStatusFormProps) {
           <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-digital">ブロック: {user.Area} / 報告者: {user.Name}</p>
         </div>
         <div className="ml-auto flex gap-2">
-          <button 
-            onClick={async () => {
-              if (confirm("スプレッドシートの初期設定（シート作成）を実行しますか？")) {
-                try {
-                  const res = await fetch("/api/setup", { method: "POST" });
-                  const data = await res.json();
-                  alert(data.message || (data.success ? "設定完了" : "設定失敗"));
-                } catch (e) {
-                  alert("通信エラーが発生しました");
-                }
-              }
-            }}
-            className="text-[10px] bg-white/5 border border-white/10 text-gray-500 px-3 py-1 rounded-lg hover:bg-white/10 transition-all"
-          >
-            シート初期化
-          </button>
         </div>
       </header>
 

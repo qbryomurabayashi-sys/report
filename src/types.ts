@@ -1,77 +1,49 @@
-export interface StoreWorkforcePlan {
-  storeId: string;
-  yearMonth: string;
-  mondayCount: number;
-  tuesdayCount: number;
-  wednesdayCount: number;
-  thursdayCount: number;
-  fridayCount: number;
-  saturdayCount: number;
-  sundayHolidayCount: number;
-  mondayAdjustment?: number;
-  tuesdayAdjustment?: number;
-  wednesdayAdjustment?: number;
-  thursdayAdjustment?: number;
-  fridayAdjustment?: number;
-  saturdayAdjustment?: number;
-  sundayHolidayAdjustment?: number;
-  partTimeStaff?: { id: string; name: string; days: number }[];
+export type Role = "店長" | "AM" | "BM";
+
+export interface User {
+  UserID: string;
+  Name: string;
+  Role: Role;
+  Area: string;
 }
 
-export interface StaffWorkforceDetail {
-  staffId: string;
-  yearMonth: string;
-  extraWorkDays: number;
-  paidLeaveDays: number;
-  supportDays: number;
-  trainingDays: number;
-  daysOffAdjustment?: number;
+export interface Task {
+  TaskID: string;
+  Assignees: string[];
+  Deadline: string;
+  IsAllDay: boolean;
+  Time?: string;
+  Content: string;
+  Status: string;
 }
-export interface StoreMaster {
+
+export interface Milestone {
+  id: string;
+  title: string;
+  date: string;
+  completed: boolean;
+}
+
+export interface Project {
+  ProjectID: string;
+  Assignees: string[];
+  WithWhom: string[];
+  StartDate: string;
+  EndDate: string;
+  What: string;
+  Purpose: string;
+  Extent: string;
+  Status: string;
+  Milestones?: Milestone[];
+}
+
+export interface Member {
   id: string;
   name: string;
-  hoursW: number;
-  hoursH: number;
-  seats: number;
-  openDate: string; // YYYY-MM-DD
-  area?: string;
-  order?: number;
+  role: string;
+  area: string;
 }
 
-export type SkillLevel = 'trainee' | 'standard' | 'leader';
+export type ViewType = "Team" | "Calendar" | "Weekly" | "Board";
 
-export interface StaffMaster {
-  id: string;
-  name: string;
-  capacity: number;
-  daysOff: number;
-  skillLevel?: SkillLevel;
-  isTrainee?: boolean; // Keep for compatibility
-}
-
-export interface DailyVisitor {
-  date: string; // YYYY-MM-DD
-  storeId: string;
-  visitors: number;
-  isHoliday: boolean;
-}
-
-export interface Allocation {
-  yearMonth: string; // YYYY-MM
-  storeId: string;
-  slots: (string | null)[];
-}
-
-export interface MonthlyBudget {
-  yearMonth: string;
-  storeId: string;
-  budget: number;
-}
-
-export type AppState = {
-  stores: StoreMaster[];
-  staffs: StaffMaster[];
-  visitors: DailyVisitor[];
-  allocations: Allocation[];
-  budgets: MonthlyBudget[];
-};
+export type AppState = "loading" | "login" | "dashboard" | "weekly_form" | "decade_form" | "am_status_form" | "report_feed" | "task_management" | "project_management" | "settings" | "version_info";

@@ -1,3 +1,7 @@
+import { db } from "../firebase";
+import { doc, setDoc, arrayUnion } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "./firebase-utils";
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
@@ -70,17 +74,14 @@ export async function subscribeToPush(userId: string) {
 
     console.log("Push Subscription obtained:", subscription);
     
-    // Register subscription with our server
-    await fetch('/api/subscribe', {
-      method: 'POST',
-      body: JSON.stringify({ 
-        subscription,
-        userId
-      }),
-      headers: {
-        'content-type': 'application/json'
-      }
-    });
+    // Register subscription with Firestore
+    try {
+      await setDoc(doc(db, "users", userId), {
+        subscriptions: arrayUnion(JSON.parse(JSON.stringify(subscription)))
+      }, { merge: true }).catch(e => handleFirestoreError(e, OperationType.UPDATE, `users/${userId}`));
+    } catch (error) {
+      console.error("Failed to save subscription to Firestore", error);
+    }
     
     return true;
   } catch (err) {

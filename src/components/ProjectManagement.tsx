@@ -3,6 +3,9 @@ import { motion } from "motion/react";
 import { User, Member, Project, Milestone } from "../types";
 import { ChevronLeft, Plus, Trash2, CheckCircle, Circle, Calendar as CalendarIcon, User as UserIcon, Users, Target, FileText, RefreshCw, Flag } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { db } from "../firebase";
+import { collection, query, getDocs, addDoc, deleteDoc, doc, updateDoc, orderBy, serverTimestamp } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 interface ProjectManagementProps {
   user: User;
@@ -32,35 +35,37 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
 
   const fetchMembers = async () => {
     try {
-      const res = await fetch("/api/members");
-      const data = await res.json();
-      setMembers(Array.isArray(data) ? data : []);
-    } catch (error) {
+      const q = query(collection(db, "users"));
+      const querySnapshot = await getDocs(q);
+      const data = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().Name,
+        role: doc.data().Role,
+        area: doc.data().Area
+      }));
+      setMembers(data as any);
+    } catch (error: any) {
       console.error("Failed to fetch members", error);
+      handleFirestoreError(error, OperationType.LIST, "users");
     }
   };
 
   const fetchProjects = async (refresh = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/projects${refresh ? "?refresh=true" : ""}`, {
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      const data = await res.json();
-      if (data && data.error) {
-        console.error("GAS error for getProjects:", data.error);
-        setProjects([]);
-      } else {
-        const transformed = (Array.isArray(data) ? data : []).map((p: any) => ({
-          ...p,
-          Assignees: p.Assignee ? p.Assignee.split(", ").filter(Boolean) : [],
-          WithWhom: p.WithWhom ? p.WithWhom.split(", ").filter(Boolean) : [],
-          Milestones: p.Milestones ? JSON.parse(p.Milestones) : []
-        }));
-        setProjects(transformed);
-      }
-    } catch (error) {
+      const q = query(collection(db, "projects"), orderBy("EndDate", "asc"));
+      const querySnapshot = await getDocs(q);
+      const data = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        ProjectID: doc.id,
+        Assignees: doc.data().Assignees || [],
+        WithWhom: doc.data().WithWhom || [],
+        Milestones: doc.data().Milestones || []
+      })) as Project[];
+      setProjects(data);
+    } catch (error: any) {
       console.error("Failed to fetch projects", error);
+      handleFirestoreError(error, OperationType.LIST, "projects");
       setProjects([]);
     } finally {
       setLoading(false);
@@ -80,52 +85,52 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
     if (!newProject.What || !newProject.StartDate || !newProject.EndDate || newProject.Assignees.length === 0) return;
 
     try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assignee: newProject.Assignees.join(", "),
-          withWhom: newProject.WithWhom.join(", "),
-          startDate: newProject.StartDate,
-          endDate: newProject.EndDate,
-          what: newProject.What,
-          purpose: newProject.Purpose,
-          extent: newProject.Extent,
-          status: "pending",
-          milestones: JSON.stringify(newProject.Milestones)
-        })
-      });
+      const projectData = {
+        Assignees: newProject.Assignees,
+        WithWhom: newProject.WithWhom,
+        StartDate: newProject.StartDate,
+        EndDate: newProject.EndDate,
+        What: newProject.What,
+        Purpose: newProject.Purpose,
+        Extent: newProject.Extent,
+        Status: "pending",
+        Milestones: newProject.Milestones,
+        CreatedAt: serverTimestamp(),
+        CreatedBy: user.UserID
+      };
 
-      if (res.ok) {
+      const docRef = await addDoc(collection(db, "projects"), projectData)
+        .catch(e => handleFirestoreError(e, OperationType.CREATE, "projects"));
+
+      if (docRef) {
         // Trigger notifications for all assignees and collaborators
         const allTargetNames = [...new Set([...newProject.Assignees, ...newProject.WithWhom])];
         const targetIds = allTargetNames.map(name => members.find(m => m.name === name)?.id).filter(Boolean);
         
         for (const id of targetIds) {
+          if (!id) continue;
           // Main project notification
-          await fetch("/api/notifications", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: id,
-              title: "新規プロジェクト承認",
-              message: `新しいプロジェクト「${newProject.What}」が承認されました。`,
-              type: "info"
-            })
-          });
+          await addDoc(collection(db, "notifications"), {
+            UserID: id,
+            Title: "新規プロジェクト承認",
+            Body: `新しいプロジェクト「${newProject.What}」が承認されました。`,
+            Url: "/dashboard",
+            Read: false,
+            CreatedAt: new Date().toISOString(),
+            Type: "info"
+          }).catch(e => handleFirestoreError(e, OperationType.CREATE, "notifications"));
 
           // Milestone notifications
           for (const m of newProject.Milestones) {
-            await fetch("/api/notifications", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId: id,
-                title: "中間期日設定",
-                message: `プロジェクト「${newProject.What}」に中間期日「${m.title}」(${m.date})が設定されました。`,
-                type: "warning"
-              })
-            });
+            await addDoc(collection(db, "notifications"), {
+              UserID: id,
+              Title: "中間期日設定",
+              Body: `プロジェクト「${newProject.What}」に中間期日「${m.title}」(${m.date})が設定されました。`,
+              Url: "/dashboard",
+              Read: false,
+              CreatedAt: new Date().toISOString(),
+              Type: "warning"
+            }).catch(e => handleFirestoreError(e, OperationType.CREATE, "notifications"));
           }
         }
       }
@@ -193,14 +198,9 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
   const toggleProjectStatus = async (project: Project) => {
     const newStatus = project.Status === "completed" ? "pending" : "completed";
     try {
-      await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: project.ProjectID,
-          status: newStatus
-        })
-      });
+      await updateDoc(doc(db, "projects", project.ProjectID), {
+        Status: newStatus
+      }).catch(e => handleFirestoreError(e, OperationType.UPDATE, `projects/${project.ProjectID}`));
       fetchProjects();
     } catch (error) {
       console.error("Failed to update project", error);
@@ -210,7 +210,8 @@ export function ProjectManagement({ user, onBack }: ProjectManagementProps) {
   const deleteProject = async (projectId: string) => {
     if (!confirm("このプロジェクトを削除しますか？")) return;
     try {
-      await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
+      await deleteDoc(doc(db, "projects", projectId))
+        .catch(e => handleFirestoreError(e, OperationType.DELETE, `projects/${projectId}`));
       fetchProjects();
     } catch (error) {
       console.error("Failed to delete project", error);

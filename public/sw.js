@@ -1,15 +1,106 @@
-// Basic Service Worker
-const CACHE_NAME = 'app-cache-v1';
+const CACHE_NAME = 'bttf-v4.0.0';
+const ASSETS_TO_CACHE = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/icon.svg'
+];
 
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
+  );
+  // Force the waiting service worker to become the active service worker.
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
-  // A simple pass-through fetch handler is enough to satisfy the PWA installability requirement
-  event.respondWith(fetch(event.request).catch(() => new Response('Offline')));
+  // Only cache GET requests
+  if (event.request.method !== 'GET') return;
+
+  // Skip caching for API calls to ensure fresh data
+  if (event.request.url.includes('/api/')) return;
+
+  // Network First strategy for the main page and index.html to ensure updates
+  if (event.request.mode === 'navigate' || event.request.url.endsWith('/') || event.request.url.endsWith('index.html')) {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match(event.request);
+      })
+    );
+    return;
+  }
+
+  // Cache First strategy for other assets
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
+  );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+self.addEventListener('push', function(event) {
+  if (event.data) {
+    const data = event.data.json();
+    
+    // バッジの更新 (showBadgeがfalseでない場合)
+    if (data.showBadge !== false && 'setAppBadge' in navigator) {
+      // バッジの数はペイロードから取得するか、デフォルトで1
+      navigator.setAppBadge(data.badgeCount || 1).catch(console.error);
+    }
+    
+    // 通知パネルの表示 (showPanelがfalseでない場合)
+    if (data.showPanel !== false) {
+      const options = {
+        body: data.body,
+        icon: data.icon || '/icon-192x192.png',
+        badge: data.badge || '/icon-192x192.png',
+        vibrate: [100, 50, 100],
+        data: {
+          dateOfArrival: Date.now(),
+          primaryKey: '2',
+          url: data.url || '/'
+        }
+      };
+      event.waitUntil(
+        self.registration.showNotification(data.title, options)
+      );
+    }
+  }
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow('/')
+  );
 });

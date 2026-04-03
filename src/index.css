@@ -1,1 +1,63 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+  --font-digital: "Share Tech Mono", monospace;
+  --font-display: "Orbitron", sans-serif;
+
+  --color-neon-blue: #00f3ff;
+  --color-neon-orange: #ff9d00;
+  --color-neon-red: #ff003c;
+  --color-neon-green: #00ff00;
+  --color-neon-purple: #bc13fe;
+  --color-dark-bg: #0a0a0f;
+  --color-glass-bg: rgba(255, 255, 255, 0.05);
+}
+
+@layer base {
+  body {
+    @apply bg-dark-bg text-gray-200 antialiased;
+  }
+}
+
+@layer components {
+  .neon-border {
+    @apply border border-neon-blue/30 shadow-[0_0_15px_rgba(0,243,255,0.1)];
+  }
+  .neon-text-blue {
+    @apply text-neon-blue drop-shadow-[0_0_5px_#00f3ff];
+  }
+  .neon-text-orange {
+    @apply text-neon-orange drop-shadow-[0_0_5px_#ff9d00];
+  }
+  .glass-card {
+    @apply bg-glass-bg backdrop-blur-xl border border-white/10;
+  }
+  .hp-gauge {
+    @apply h-3 rounded-full bg-black/40 overflow-hidden border border-white/5;
+  }
+  .hp-gauge-blue {
+    @apply h-full bg-gradient-to-r from-neon-blue/40 to-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.5)];
+  }
+  .hp-gauge-orange {
+    @apply h-full bg-gradient-to-r from-neon-orange/40 to-neon-orange shadow-[0_0_10px_rgba(255,157,0,0.5)];
+  }
+  .quest-card {
+    @apply bg-glass-bg backdrop-blur-xl border border-white/10 p-4 rounded-xl border-l-4 transition-all hover:scale-[1.02] active:scale-[0.98];
+  }
+  .quest-card-task {
+    @apply border-l-neon-blue;
+  }
+  .quest-card-project {
+    @apply border-l-neon-orange;
+  }
+}
+
+@keyframes scan {
+  0%, 100% { transform: translateY(-50px); opacity: 0; }
+  50% { transform: translateY(50px); opacity: 1; }
+}
+
+.scanner {
+  animation: scan 2s infinite ease-in-out;
+}

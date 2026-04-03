@@ -1,5 +1,5 @@
 {
-  "name": "店舗人員適正化シミュレーター PRO",
-  "description": "店舗ごとの人員適正化および配置シミュレーションを行うWebアプリケーション",
+  "name": "BTTF Management App",
+  "description": "A management app for store managers, AMs, and BMs with a Back to the Future theme.",
   "requestFramePermissions": []
 }

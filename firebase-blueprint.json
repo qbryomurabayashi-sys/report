@@ -2,39 +2,119 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "Application user",
+      "description": "User profile and settings",
       "type": "object",
       "properties": {
-        "UserID": { "type": "string" },
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "UserID": { "type": "string", "description": "Legacy User ID" },
         "Name": { "type": "string" },
-        "Role": { "type": "string" },
+        "Role": { "type": "string", "enum": ["店長", "AM", "BM"] },
         "Area": { "type": "string" },
-        "fcmToken": { "type": "string" }
+        "fcmToken": { "type": "string" },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "showPanel": { "type": "boolean" },
+            "showBadge": { "type": "boolean" },
+            "deadlineApproaching": { "type": "boolean" },
+            "commentAdded": { "type": "boolean" },
+            "projectAdded": { "type": "boolean" },
+            "taskAdded": { "type": "boolean" },
+            "likeAdded": { "type": "boolean" }
+          }
+        }
       },
-      "required": ["UserID", "Name"]
+      "required": ["uid", "Name", "Role"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Base report entity",
+      "type": "object",
+      "properties": {
+        "ReportID": { "type": "string" },
+        "UserID": { "type": "string" },
+        "UserName": { "type": "string" },
+        "UserArea": { "type": "string" },
+        "SubmittedAt": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["weekly", "decade", "amStatus"] }
+      }
+    },
+    "Like": {
+      "title": "Like",
+      "type": "object",
+      "properties": {
+        "LikeID": { "type": "string" },
+        "ReportID": { "type": "string" },
+        "UserID": { "type": "string" },
+        "CreatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Comment": {
+      "title": "Comment",
+      "type": "object",
+      "properties": {
+        "CommentID": { "type": "string" },
+        "ReportID": { "type": "string" },
+        "UserID": { "type": "string" },
+        "UserName": { "type": "string" },
+        "Content": { "type": "string" },
+        "CreatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Task": {
+      "title": "Task",
+      "type": "object",
+      "properties": {
+        "TaskID": { "type": "string" },
+        "Assignees": { "type": "array", "items": { "type": "string" } },
+        "Deadline": { "type": "string" },
+        "IsAllDay": { "type": "boolean" },
+        "Time": { "type": "string" },
+        "Content": { "type": "string" },
+        "Status": { "type": "string" },
+        "CreatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Project": {
+      "title": "Project",
+      "type": "object",
+      "properties": {
+        "ProjectID": { "type": "string" },
+        "Assignees": { "type": "array", "items": { "type": "string" } },
+        "WithWhom": { "type": "array", "items": { "type": "string" } },
+        "StartDate": { "type": "string" },
+        "EndDate": { "type": "string" },
+        "What": { "type": "string" },
+        "Purpose": { "type": "string" },
+        "Extent": { "type": "string" },
+        "Status": { "type": "string" },
+        "Milestones": { "type": "array", "items": { "type": "object" } },
+        "CreatedAt": { "type": "string", "format": "date-time" }
+      }
     },
     "Notification": {
       "title": "Notification",
-      "description": "Push notification log",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "title": { "type": "string" },
-        "body": { "type": "string" },
-        "url": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["userId", "title", "body"]
+        "NotificationID": { "type": "string" },
+        "UserID": { "type": "string" },
+        "Title": { "type": "string" },
+        "Body": { "type": "string" },
+        "Url": { "type": "string" },
+        "Read": { "type": "boolean" },
+        "CreatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": "User",
-      "description": "User profile and settings"
-    },
-    "/notifications/{notificationId}": {
-      "schema": "Notification",
-      "description": "Notification history"
-    }
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/weeklyReports/{reportId}": { "schema": "Report", "description": "Weekly reports" },
+    "/decadeReports/{reportId}": { "schema": "Report", "description": "Decade reports" },
+    "/amStatusReports/{reportId}": { "schema": "Report", "description": "AM status reports" },
+    "/likes/{likeId}": { "schema": "Like", "description": "Report likes" },
+    "/comments/{commentId}": { "schema": "Comment", "description": "Report comments" },
+    "/tasks/{taskId}": { "schema": "Task", "description": "Tasks" },
+    "/projects/{projectId}": { "schema": "Project", "description": "Projects" },
+    "/notifications/{notificationId}": { "schema": "Notification", "description": "User notifications" }
   }
 }

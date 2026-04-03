@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Bell, X, Info, AlertCircle, CheckCircle2 } from "lucide-react";
 import { User } from "../types";
+import { db } from "../firebase";
+import { collection, query, where, onSnapshot, doc, updateDoc, orderBy } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 interface NotificationPanelProps {
   user: User;
@@ -20,45 +23,40 @@ export function NotificationPanel({ user }: NotificationPanelProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      const settingsSaved = localStorage.getItem(`settings_${user.UserID}`);
-      const settings = settingsSaved ? JSON.parse(settingsSaved) : { showPanel: true };
-      
-      if (!settings.showPanel) return;
+    const q = query(
+      collection(db, "notifications"),
+      where("UserID", "==", user.UserID),
+      where("Read", "==", false),
+      orderBy("CreatedAt", "desc")
+    );
 
-      try {
-        const res = await fetch(`/api/notifications?userId=${user.UserID}`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const formatted = data.filter(n => !n.IsRead).map((n: any) => ({
-            id: n.NotificationID,
-            title: n.Title,
-            message: n.Message,
-            type: n.Type as "info" | "warning" | "success",
-            time: new Date(n.CreatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }));
-          setNotifications(formatted);
-          if (formatted.length > 0) {
-            setShow(true);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch notifications", error);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const formatted = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          title: data.Title,
+          message: data.Body,
+          type: (data.Type || "info") as "info" | "warning" | "success",
+          time: data.CreatedAt ? new Date(data.CreatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""
+        };
+      });
+      setNotifications(formatted);
+      if (formatted.length > 0) {
+        setShow(true);
       }
-    };
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "notifications");
+    });
 
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Check every minute
-    return () => clearInterval(interval);
+    return () => unsubscribe();
   }, [user.UserID]);
 
   const removeNotification = async (id: string) => {
     try {
-      await fetch(`/api/notifications/read`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationId: id })
-      });
+      await updateDoc(doc(db, "notifications", id), {
+        Read: true
+      }).catch(e => handleFirestoreError(e, OperationType.UPDATE, `notifications/${id}`));
       setNotifications(prev => prev.filter(n => n.id !== id));
     } catch (error) {
       console.error("Failed to mark notification as read", error);

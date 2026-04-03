@@ -3,6 +3,9 @@ import { motion } from "motion/react";
 import { User, Member } from "../types";
 import { ChevronLeft, Plus, Trash2, CheckCircle, Circle, Calendar as CalendarIcon, User as UserIcon, RefreshCw, Sword } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { db } from "../firebase";
+import { collection, query, getDocs, addDoc, deleteDoc, doc, updateDoc, orderBy, serverTimestamp, where } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 interface Task {
   TaskID: string;
@@ -38,11 +41,18 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
 
   const fetchMembers = async () => {
     try {
-      const res = await fetch("/api/members");
-      const data = await res.json();
-      setMembers(Array.isArray(data) ? data : []);
-    } catch (error) {
+      const q = query(collection(db, "users"));
+      const querySnapshot = await getDocs(q);
+      const data = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().Name,
+        role: doc.data().Role,
+        area: doc.data().Area
+      }));
+      setMembers(data as any);
+    } catch (error: any) {
       console.error("Failed to fetch members", error);
+      handleFirestoreError(error, OperationType.LIST, "users");
     }
   };
 
@@ -58,18 +68,16 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
   const fetchTasks = async (refresh = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/tasks${refresh ? "?refresh=true" : ""}`, {
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      const data = await res.json();
-      if (data && data.error) {
-        console.error("GAS error for getTasks:", data.error);
-        setTasks([]);
-      } else {
-        setTasks(Array.isArray(data) ? data : []);
-      }
-    } catch (error) {
+      const q = query(collection(db, "tasks"), orderBy("Deadline", "asc"));
+      const querySnapshot = await getDocs(q);
+      const data = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        TaskID: doc.id
+      })) as Task[];
+      setTasks(data);
+    } catch (error: any) {
       console.error("Failed to fetch tasks", error);
+      handleFirestoreError(error, OperationType.LIST, "tasks");
       setTasks([]);
     } finally {
       setLoading(false);
@@ -89,23 +97,22 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
     if (!newTask.Content || !newTask.Deadline || newTask.Assignees.length === 0) return;
 
     try {
-      await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assignees: newTask.Assignees,
-          deadline: newTask.Deadline,
-          isAllDay: newTask.IsAllDay,
-          time: newTask.IsAllDay ? "" : newTask.Time,
-          content: newTask.Content,
-          status: "pending"
-        })
-      });
+      await addDoc(collection(db, "tasks"), {
+        Assignees: newTask.Assignees,
+        Deadline: newTask.Deadline,
+        IsAllDay: newTask.IsAllDay,
+        Time: newTask.IsAllDay ? "" : newTask.Time,
+        Content: newTask.Content,
+        Status: "pending",
+        CreatedAt: serverTimestamp(),
+        CreatedBy: user.UserID
+      }).catch(e => handleFirestoreError(e, OperationType.CREATE, "tasks"));
+      
       setNewTask({ 
         Assignees: [user.Name], 
         Deadline: "", 
-        IsAllDay: true,
-        Time: "12:00",
+        IsAllDay: true, 
+        Time: "12:00", 
         Content: "" 
       });
       fetchTasks();
@@ -117,14 +124,9 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
   const toggleTaskStatus = async (task: Task) => {
     const newStatus = task.Status === "completed" ? "pending" : "completed";
     try {
-      await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          taskId: task.TaskID,
-          status: newStatus
-        })
-      });
+      await updateDoc(doc(db, "tasks", task.TaskID), {
+        Status: newStatus
+      }).catch(e => handleFirestoreError(e, OperationType.UPDATE, `tasks/${task.TaskID}`));
       fetchTasks();
     } catch (error) {
       console.error("Failed to update task", error);
@@ -134,7 +136,8 @@ export function TaskManagement({ user, onBack }: TaskManagementProps) {
   const deleteTask = async (taskId: string) => {
     if (!confirm("このタスクを削除しますか？")) return;
     try {
-      await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+      await deleteDoc(doc(db, "tasks", taskId))
+        .catch(e => handleFirestoreError(e, OperationType.DELETE, `tasks/${taskId}`));
       fetchTasks();
     } catch (error) {
       console.error("Failed to delete task", error);

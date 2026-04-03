@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
 import { Key, X, Send } from "lucide-react";
+import { db } from "../firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 interface PinModalProps {
   userId: string;
@@ -23,18 +26,12 @@ export function PinModal({ userId, onClose }: PinModalProps) {
     setError("");
 
     try {
-      const response = await fetch("/api/updatePin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, newPin }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        alert("パスワードを更新しました");
-        onClose();
-      } else {
-        setError(data.message);
-      }
+      await updateDoc(doc(db, "users", userId), {
+        Pin: newPin
+      }).catch(e => handleFirestoreError(e, OperationType.UPDATE, `users/${userId}`));
+      
+      alert("パスワードを更新しました");
+      onClose();
     } catch (err) {
       setError("通信エラーが発生しました");
     } finally {

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { User } from "../types";
 import { ChevronLeft, MessageSquare, Send, User as UserIcon, Calendar, Heart, RefreshCw } from "lucide-react";
+import { db } from "../firebase";
+import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, onSnapshot } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 interface ReportFeedProps {
   user: User;
@@ -34,27 +37,28 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
     setIsLoading(true);
     setError("");
     try {
-      let endpoint = "";
-      if (reportType === "weekly") endpoint = "/api/weeklyReports";
-      else if (reportType === "decade") endpoint = "/api/decadeReports";
-      else if (reportType === "am_status") endpoint = "/api/amStatusReports";
+      let collectionName = "";
+      if (reportType === "weekly") collectionName = "weeklyReports";
+      else if (reportType === "decade") collectionName = "decadeReports";
+      else if (reportType === "am_status") collectionName = "amStatusReports";
 
-      const response = await fetch(`${endpoint}?userId=${user.UserID}&role=${user.Role}&area=${encodeURIComponent(user.Area || "")}${refresh ? "&refresh=true" : ""}`, {
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || data.message || "データの取得に失敗しました");
-      }
+      const q = query(
+        collection(db, collectionName),
+        orderBy("SubmittedAt", "desc"),
+        limit(50)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const data = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        ReportID: doc.id,
+        // Ensure some fields exist for legacy UI
+        LikeCount: doc.data().LikeCount || 0,
+        UserLiked: (doc.data().Likers || []).includes(user.UserID),
+        LikerNames: doc.data().LikerNames || [],
+        Comments: doc.data().Comments || []
+      }));
       
-      if (!Array.isArray(data)) {
-        console.error(`Expected array but got:`, data);
-        setReports([]);
-        setError("データの形式が正しくありません。GASの設定を確認してください。");
-        return;
-      }
-
-      console.log(`Fetched ${data.length} ${reportType} reports:`, data);
       setReports(data);
     } catch (err: any) {
       console.error("Fetch reports failed:", err);
@@ -90,19 +94,21 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
     
     const reportId = selectedReport.ReportID;
     const commentText = comment;
+    const collectionName = reportType === "weekly" ? "weeklyReports" : reportType === "decade" ? "decadeReports" : "amStatusReports";
     
+    const newComment = {
+      CommentID: Math.random().toString(36).substring(7),
+      ReportID: reportId,
+      UserID: user.UserID,
+      UserName: user.Name,
+      Role: user.Role,
+      Text: commentText,
+      CreatedAt: new Date().toISOString()
+    };
+
     // Optimistic update
     setReports(prev => prev.map(r => {
-      if (String(r.ReportID) === String(reportId)) {
-        const newComment = {
-          CommentID: "temp-" + Date.now(),
-          ReportID: reportId,
-          UserID: user.UserID,
-          UserName: user.Name,
-          Role: user.Role,
-          Text: commentText,
-          CreatedAt: new Date().toISOString()
-        };
+      if (r.ReportID === reportId) {
         return {
           ...r,
           Comments: [...(r.Comments || []), newComment]
@@ -114,20 +120,16 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/addComment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reportId: reportId,
-          userId: user.UserID,
-          role: user.Role,
-          comment: commentText
-        }),
+      await updateDoc(doc(db, collectionName, reportId), {
+        Comments: arrayUnion(newComment)
+      }).catch(e => handleFirestoreError(e, OperationType.UPDATE, `${collectionName}/${reportId}`));
+      
+      // Also add to global comments collection if needed for notifications
+      await addDoc(collection(db, "comments"), {
+        ...newComment,
+        TargetUserID: selectedReport.UserID
       });
-      const data = await response.json();
-      if (!data.success) {
-        fetchReports(); // Rollback
-      }
+
     } catch (err) {
       alert("保存に失敗しました");
       fetchReports(); // Rollback
@@ -137,15 +139,20 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
   };
 
   const handleToggleLike = async (reportId: string) => {
+    const report = reports.find(r => r.ReportID === reportId);
+    if (!report) return;
+
+    const collectionName = reportType === "weekly" ? "weeklyReports" : reportType === "decade" ? "decadeReports" : "amStatusReports";
+    const isLiking = !report.UserLiked;
+
     // Optimistic update
     setReports(prev => prev.map(r => {
-      if (String(r.ReportID) === String(reportId)) {
-        const newUserLiked = !r.UserLiked;
+      if (r.ReportID === reportId) {
         return {
           ...r,
-          UserLiked: newUserLiked,
-          LikeCount: newUserLiked ? (Number(r.LikeCount || 0) + 1) : Math.max(0, Number(r.LikeCount || 0) - 1),
-          LikerNames: newUserLiked 
+          UserLiked: isLiking,
+          LikeCount: isLiking ? (Number(r.LikeCount || 0) + 1) : Math.max(0, Number(r.LikeCount || 0) - 1),
+          LikerNames: isLiking 
             ? [...(r.LikerNames || []), user.Name]
             : (r.LikerNames || []).filter((name: string) => name !== user.Name)
         };
@@ -154,14 +161,20 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
     }));
 
     try {
-      const response = await fetch("/api/toggleLike", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId, userId: user.UserID, type: reportType }),
-      });
-      const data = await response.json();
-      if (!data.success) {
-        fetchReports(); // Rollback
+      await updateDoc(doc(db, collectionName, reportId), {
+        LikeCount: increment(isLiking ? 1 : -1),
+        Likers: isLiking ? arrayUnion(user.UserID) : arrayRemove(user.UserID),
+        LikerNames: isLiking ? arrayUnion(user.Name) : arrayRemove(user.Name)
+      }).catch(e => handleFirestoreError(e, OperationType.UPDATE, `${collectionName}/${reportId}`));
+
+      if (isLiking) {
+        await addDoc(collection(db, "likes"), {
+          ReportID: reportId,
+          UserID: user.UserID,
+          UserName: user.Name,
+          TargetUserID: report.UserID,
+          CreatedAt: new Date().toISOString()
+        });
       }
     } catch (err) {
       console.error("Like failed:", err);
@@ -175,23 +188,19 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
     const reportId = selectedReport.ReportID;
     const commentText = feedbackComment;
     const role = user.Role;
+    const collectionName = type === "weekly" ? "weeklyReports" : "decadeReports";
     
     // Optimistic update
     setReports(prev => prev.map(r => {
-      if (String(r.ReportID) === String(reportId)) {
+      if (r.ReportID === reportId) {
         if (type === 'weekly') {
           return {
             ...r,
             [role === 'AM' ? 'AM_Comment' : 'BM_Comment']: commentText,
             [role === 'AM' ? 'AM_Comment_Name' : 'BM_Comment_Name']: user.Name
           };
-        } else {
-          // For decade reports, feedback is just another comment in the list usually, 
-          // or it might be a specific field. Looking at server.ts, it seems saveComment 
-          // only handles weeklyReports for specific fields.
-          // But let's assume it's a comment for now if it's not weekly.
-          return r; 
         }
+        return r;
       }
       return r;
     }));
@@ -199,21 +208,29 @@ export function ReportFeed({ user, onBack }: ReportFeedProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/saveComment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reportId: reportId,
-          comment: commentText,
-          role: role,
-          userId: user.UserID,
-          type
-        }),
-      });
-      const data = await response.json();
-      if (!data.success) {
-        fetchReports(); // Rollback
+      const updateData: any = {};
+      if (role === 'AM') {
+        updateData.AM_Comment = commentText;
+        updateData.AM_Comment_Name = user.Name;
+      } else {
+        updateData.BM_Comment = commentText;
+        updateData.BM_Comment_Name = user.Name;
       }
+
+      await updateDoc(doc(db, collectionName, reportId), updateData)
+        .catch(e => handleFirestoreError(e, OperationType.UPDATE, `${collectionName}/${reportId}`));
+
+      // Add notification for the author
+      await addDoc(collection(db, "notifications"), {
+        UserID: selectedReport.UserID,
+        Title: "フィードバックが届きました",
+        Body: `${user.Name}があなたの報告にフィードバックしました。`,
+        Url: "/reports",
+        Read: false,
+        CreatedAt: new Date().toISOString(),
+        Type: "success"
+      });
+
     } catch (err) {
       alert("保存に失敗しました");
       fetchReports(); // Rollback
