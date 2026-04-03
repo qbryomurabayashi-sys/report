@@ -106,42 +106,41 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(uid) && isValidUser(request.resource.data);
-      allow update: if isAuthenticated() && isOwner(uid) && isValidUser(request.resource.data) &&
-                      request.resource.data.Role == resource.data.Role; // Role cannot be changed by user
+      allow create: if isAuthenticated() && ((isOwner(uid) && isValidUser(request.resource.data)) || isAdmin());
+      allow update: if isAuthenticated() && ((isOwner(uid) && isValidUser(request.resource.data) && request.resource.data.Role == resource.data.Role) || isAdmin());
       allow delete: if isAdmin();
     }
 
     match /weeklyReports/{reportId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidReport(request.resource.data);
+      allow create: if isAuthenticated() && (isValidReport(request.resource.data) || isAdmin());
       allow update: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
       allow delete: if isAdmin();
     }
 
     match /decadeReports/{reportId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidReport(request.resource.data);
+      allow create: if isAuthenticated() && (isValidReport(request.resource.data) || isAdmin());
       allow update: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
       allow delete: if isAdmin();
     }
 
     match /amStatusReports/{reportId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidReport(request.resource.data);
+      allow create: if isAuthenticated() && (isValidReport(request.resource.data) || isAdmin());
       allow update: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
       allow delete: if isAdmin();
     }
 
     match /likes/{likeId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(request.resource.data.UserID);
+      allow create: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
       allow delete: if isAuthenticated() && (isOwner(resource.data.UserID) || isAdmin());
     }
 
     match /comments/{commentId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(request.resource.data.UserID);
+      allow create: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
       allow update: if isAuthenticated() && (isOwner(resource.data.UserID) || isAdmin());
       allow delete: if isAuthenticated() && (isOwner(resource.data.UserID) || isAdmin());
     }

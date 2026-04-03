@@ -4,7 +4,7 @@ import { ChevronLeft, Bell, Smartphone, Monitor, CheckCircle2, Circle, Send, Shi
 import { User } from "../types";
 import { subscribeToPush } from "../lib/notifications";
 import { db } from "../firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection } from "firebase/firestore";
 import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 interface SettingsProps {
@@ -35,6 +35,8 @@ export function Settings({ user, onBack }: SettingsProps) {
   });
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [isTesting, setIsTesting] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState("");
 
   useEffect(() => {
     if ("Notification" in window) {
@@ -156,6 +158,59 @@ export function Settings({ user, onBack }: SettingsProps) {
       }
     }
     window.location.reload();
+  };
+
+  const handleMigration = async () => {
+    if (!confirm("旧システム（db.json）からデータを移行しますか？既存のデータは上書きされる可能性があります。")) {
+      return;
+    }
+    
+    setIsMigrating(true);
+    setMigrationStatus("データを取得中...");
+    
+    try {
+      const response = await fetch("/api/migrate-data");
+      const result = await response.json();
+      
+      if (!result.success || !result.data) {
+        throw new Error("データの取得に失敗しました");
+      }
+      
+      const data = result.data;
+      const collections: Record<string, string> = {
+        users: "users",
+        weeklyReports: "weeklyReports",
+        decadeReports: "decadeReports",
+        amStatusReports: "amStatusReports",
+        tasks: "tasks",
+        projects: "projects",
+        notifications: "notifications"
+      };
+
+      for (const [key, collectionName] of Object.entries(collections)) {
+        const items = data[key] || [];
+        setMigrationStatus(`${collectionName} を移行中... (${items.length}件)`);
+        
+        for (const item of items) {
+          const id = item.UserID || item.ReportID || item.TaskID || item.ProjectID || item.NotificationID;
+          if (!id) continue;
+          
+          const docRef = doc(db, collectionName, String(id));
+          await setDoc(docRef, {
+            ...item,
+            migratedAt: new Date().toISOString()
+          }, { merge: true }).catch(e => handleFirestoreError(e, OperationType.WRITE, collectionName));
+        }
+      }
+      
+      setMigrationStatus("移行が完了しました！");
+      setTimeout(() => setMigrationStatus(""), 3000);
+    } catch (error: any) {
+      console.error("Migration failed:", error);
+      setMigrationStatus(`エラー: ${error.message}`);
+    } finally {
+      setIsMigrating(false);
+    }
   };
 
   return (
@@ -293,6 +348,31 @@ export function Settings({ user, onBack }: SettingsProps) {
             </button>
           </div>
         </section>
+
+        {user.Role === 'BM' && (
+          <section className="glass-card p-6 rounded-2xl border-l-4 border-red-500">
+            <div className="flex items-center gap-2 mb-6">
+              <ShieldAlert className="w-4 h-4 text-red-500" />
+              <h3 className="text-sm font-bold text-red-500 uppercase tracking-widest font-display">Admin Tools</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <button
+                onClick={handleMigration}
+                disabled={isMigrating}
+                className="w-full flex items-center justify-center gap-2 p-4 bg-red-500/10 border border-red-500/30 rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <RefreshCw size={16} className={isMigrating ? "text-gray-500 animate-spin" : "text-red-500"} />
+                <span className="text-xs font-bold text-red-500">
+                  {isMigrating ? "移行処理中..." : "旧システムからデータを移行"}
+                </span>
+              </button>
+              {migrationStatus && (
+                <p className="text-[10px] text-center text-gray-400 font-digital">{migrationStatus}</p>
+              )}
+            </div>
+          </section>
+        )}
 
         <div className="p-4 text-center">
           <p className="text-[10px] text-gray-600 uppercase tracking-widest font-digital">BTTF App Version 4.1.0 (Firebase)</p>
