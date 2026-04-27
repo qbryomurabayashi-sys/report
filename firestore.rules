@@ -1,170 +1,84 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {uid}
-    // Fields:
-    //   - uid: string (required) - Firebase Auth UID
-    //   - UserID: string (optional) - Legacy User ID
-    //   - Name: string (required)
-    //   - Role: string (required, enum: ['店長', 'AM', 'BM'])
-    //   - Area: string (optional)
-    //   - fcmToken: string (optional)
-    //   - settings: map (optional)
-    //
-    // Collection: weeklyReports, decadeReports, amStatusReports
-    // Document ID: {reportId}
-    // Fields:
-    //   - ReportID: string (required)
-    //   - UserID: string (required)
-    //   - UserName: string (required)
-    //   - UserArea: string (optional)
-    //   - SubmittedAt: string (required, ISO 8601)
-    //   - type: string (required, enum: ['weekly', 'decade', 'amStatus'])
-    //
-    // Collection: likes
-    // Document ID: {likeId}
-    // Fields:
-    //   - LikeID: string (required)
-    //   - ReportID: string (required)
-    //   - UserID: string (required)
-    //   - CreatedAt: string (required, ISO 8601)
-    //
-    // Collection: comments
-    // Document ID: {commentId}
-    // Fields:
-    //   - CommentID: string (required)
-    //   - ReportID: string (required)
-    //   - UserID: string (required)
-    //   - UserName: string (required)
-    //   - Content: string (required)
-    //   - CreatedAt: string (required, ISO 8601)
-    //
-    // [Other collections follow similar patterns]
-    //
-    // ===============================================================
+    // --- Global Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return request.auth.token.email_verified == true; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function getRole() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
+    function isAdmin() { return isSignedIn() && getRole() == 'BM'; }
 
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    function isAuthenticated() {
-      return request.auth != null;
+    // --- Global Catch-all ---
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    // --- Users Collection ---
+    match /users {
+      allow list: if isSignedIn();
+    }
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId || // 一時的に本人のロール変更を許可（BMへの昇格用）
+        isAdmin() 
+      );
+      
+      // Allow user creation by themselves (initial profile setup) or by Admin
+      allow create: if isSignedIn() && (
+          (request.auth.uid == userId && request.resource.data.role in ['店長', 'AM', 'BM']) ||
+          isAdmin()
+      );
+
+      match /notifications/{notificationId} {
+        allow get, list, update, delete: if isSignedIn() && request.auth.uid == userId;
+        allow create: if isSignedIn(); // Any authenticated user can create a notification for another user
+      }
     }
 
-    function isAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.Role == 'BM' ||
-          (request.auth.token.email == "qb.ryo.murabayashi@gmail.com" && request.auth.token.email_verified == true));
+    // --- Shift Management Collections ---
+    match /stores/{storeId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
+    match /staffs/{staffId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+    match /shift_requests/{requestId} {
+      allow read, write: if isSignedIn();
     }
 
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    // --- Reports Collection ---
+    match /reports/{reportId} {
+      allow read, write: if isSignedIn();
+      
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read, write: if isSignedIn();
+      }
     }
 
-    function isValidDateString(dateStr) {
-      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    // --- Announcements Collection ---
+    match /announcements/{announcementId} {
+      allow read, write: if isSignedIn();
     }
 
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-    function isValidUser(data) {
-      return hasRequiredFields(['uid', 'Name', 'Role']) &&
-             data.uid is string && data.uid.size() > 0 &&
-             data.Name is string && data.Name.size() > 0 && data.Name.size() < 100 &&
-             data.Role in ['店長', 'AM', 'BM'];
-    }
-
-    function isValidReport(data) {
-      return hasRequiredFields(['ReportID', 'UserID', 'UserName', 'SubmittedAt', 'type']) &&
-             data.ReportID is string &&
-             data.UserID is string &&
-             data.UserName is string && data.UserName.size() > 0 &&
-             isValidDateString(data.SubmittedAt) &&
-             data.type in ['weekly', 'decade', 'amStatus'];
-    }
-
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
-    match /users/{uid} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && ((isOwner(uid) && isValidUser(request.resource.data)) || isAdmin());
-      allow update: if isAuthenticated() && ((isOwner(uid) && isValidUser(request.resource.data) && request.resource.data.Role == resource.data.Role) || isAdmin());
-      allow delete: if isAdmin();
-    }
-
-    match /weeklyReports/{reportId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isValidReport(request.resource.data) || isAdmin());
-      allow update: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
-      allow delete: if isAdmin();
-    }
-
-    match /decadeReports/{reportId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isValidReport(request.resource.data) || isAdmin());
-      allow update: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
-      allow delete: if isAdmin();
-    }
-
-    match /amStatusReports/{reportId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isValidReport(request.resource.data) || isAdmin());
-      allow update: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
-      allow delete: if isAdmin();
-    }
-
-    match /likes/{likeId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
-      allow delete: if isAuthenticated() && (isOwner(resource.data.UserID) || isAdmin());
-    }
-
-    match /comments/{commentId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isOwner(request.resource.data.UserID) || isAdmin());
-      allow update: if isAuthenticated() && (isOwner(resource.data.UserID) || isAdmin());
-      allow delete: if isAuthenticated() && (isOwner(resource.data.UserID) || isAdmin());
-    }
-
+    // --- Tasks / Calendar Collection ---
     match /tasks/{taskId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.Role in ['AM', 'BM']);
-      allow update: if isAuthenticated() && (isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.Role in ['AM', 'BM']);
-      allow delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
+    // --- Projects & Chat Collection ---
     match /projects/{projectId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.Role in ['AM', 'BM']);
-      allow update: if isAuthenticated() && (isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.Role in ['AM', 'BM']);
-      allow delete: if isAdmin();
-    }
-
-    match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && isOwner(resource.data.UserID);
-      allow create: if isAuthenticated(); // Anyone can send notification? Maybe restrict to server/admin? 
-                                          // For now, allow create if authenticated to simplify client-side logic.
-      allow update: if isAuthenticated() && isOwner(resource.data.UserID);
-      allow delete: if isAuthenticated() && isOwner(resource.data.UserID);
+      allow read, write: if isSignedIn();
+      
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn();
+      }
     }
   }
 }
